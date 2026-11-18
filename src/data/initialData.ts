@@ -130,7 +130,7 @@ export const DEFAULT_CONFIG: ScoringConfig = {
   judgeCriteria: DEFAULT_JUDGE_CRITERIA,
 };
 
-// Exact performance order from Danh sách thứ tự biểu diễn (16/11/2026) + row 12 for 9A1
+// Exact performance order from Danh sách thứ tự biểu diễn (16/11/2026) — 11 lớp tham gia
 export const INITIAL_PERFORMANCES: PerformanceItem[] = [
   {
     id: 'tm-01',
@@ -220,14 +220,6 @@ export const INITIAL_PERFORMANCES: PerformanceItem[] = [
     isTeacherTheme: false,
     scores: { gk1: null, gk2: null, gk3: null, gk4: null, gk5: null },
   },
-  {
-    id: 'tm-12',
-    stt: 12,
-    className: '9A1',
-    performanceName: '',
-    isTeacherTheme: false,
-    scores: { gk1: null, gk2: null, gk3: null, gk4: null, gk5: null },
-  },
 ];
 
 // Normalized 0-1 ratios per performance for realistic sample generation regardless of criteria assignment
@@ -243,5 +235,4 @@ export const SAMPLE_RATIO_BY_STT: Record<number, Record<JudgeId, number>> = {
   9: { gk1: 0.91, gk2: 0.9, gk3: 0.9, gk4: 0.88, gk5: 0.92 },
   10: { gk1: 0.8, gk2: 0.78, gk3: 0.8, gk4: 0.82, gk5: 0.85 },
   11: { gk1: 0.92, gk2: 0.92, gk3: 0.92, gk4: 0.92, gk5: 0.95 },
-  12: { gk1: 0.85, gk2: 0.84, gk3: 0.85, gk4: 0.86, gk5: 0.88 },
 };

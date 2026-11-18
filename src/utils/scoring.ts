@@ -18,7 +18,7 @@ export const PRIZE_QUOTA: Record<Exclude<PrizeTier, 'none'>, { label: string; co
   nhat: { label: 'Giải Nhất', count: 1 },
   nhi: { label: 'Giải Nhì', count: 2 },
   ba: { label: 'Giải Ba', count: 2 },
-  khuyen_khich: { label: 'Giải Khuyến khích', count: 7 },
+  khuyen_khich: { label: 'Giải Khuyến khích', count: 6 },
 };
 
 export function roundScore(val: number): number {
@@ -107,7 +107,7 @@ export function getPrizeForSlot(slotIndexZeroBased: number): {
   if (slotIndexZeroBased === 3 || slotIndexZeroBased === 4) {
     return { prize: 'ba', prizeLabel: 'Giải Ba' };
   }
-  if (slotIndexZeroBased >= 5 && slotIndexZeroBased < 12) {
+  if (slotIndexZeroBased >= 5 && slotIndexZeroBased < 11) {
     return { prize: 'khuyen_khich', prizeLabel: 'Khuyến khích' };
   }
   return { prize: 'none', prizeLabel: '—' };

@@ -30,7 +30,7 @@ import {
   roundScore,
 } from './utils/scoring';
 
-const STORAGE_KEY_PERFORMANCES = 'thcs-lhl-2011-performances-v2';
+const STORAGE_KEY_PERFORMANCES = 'thcs-lhl-2011-performances-v3';
 const STORAGE_KEY_CONFIG = 'thcs-lhl-2011-config-v2';
 
 function loadInitialPerformances(): PerformanceItem[] {
@@ -38,7 +38,7 @@ function loadInitialPerformances(): PerformanceItem[] {
     const raw = localStorage.getItem(STORAGE_KEY_PERFORMANCES);
     if (!raw) return INITIAL_PERFORMANCES;
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length === 12) {
+    if (Array.isArray(parsed) && parsed.length === 11) {
       return parsed;
     }
   } catch {
@@ -271,12 +271,12 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#1C1917]">
+    <div className="min-h-screen flex flex-col bg-[#FAF7F2] text-[#1C1917]">
       <TopBar activeTab={activeTab} onSelectTab={setActiveTab} onPrint={handlePrint} />
 
       <EventMasthead evaluated={evaluated} config={config} />
 
-      <main className="no-print flex-1 mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
+      <main className="no-print flex-1 mx-auto w-full max-w-[1400px] px-4 py-5 pb-24 sm:px-6 md:py-6 md:pb-8 lg:px-8">
         {activeTab === 'ledger' && (
           <div className="space-y-4">
             <CriteriaAssignmentPanel
@@ -337,7 +337,7 @@ export default function App() {
         )}
       </main>
 
-      <footer className="no-print border-t border-[#E5E0D8] bg-white py-4 text-xs text-[#6B655E]">
+      <footer className="no-print border-t border-[#E6DFD5] bg-white py-4 pb-20 md:pb-4 text-xs text-[#6B655E]">
         <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6 lg:px-8">
           <span>
             {SCHOOL_NAME} · Hội thi Văn nghệ Kỷ niệm 44 năm Ngày Nhà giáo Việt Nam 20/11

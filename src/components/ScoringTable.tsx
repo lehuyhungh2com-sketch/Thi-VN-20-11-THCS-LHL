@@ -2,6 +2,8 @@ import React, { useRef, useState } from 'react';
 import {
   ArrowDownWideNarrow,
   ArrowUpDown,
+  ChevronDown,
+  ChevronUp,
   Download,
   RotateCcw,
   Sparkles,
@@ -119,17 +121,17 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
   return (
     <div className="space-y-4">
       {/* Workspace Toolbar */}
-      <div className="no-print flex flex-col gap-3 rounded-md border border-[#E5E0D8] bg-white px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="no-print flex flex-col gap-3 rounded-xl border border-[#E6DFD5] bg-white px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-3">
           <div
             role="group"
             aria-label="Sắp xếp bảng điểm"
-            className="inline-flex items-center rounded border border-[#E5E0D8] bg-[#FAF8F5] p-0.5"
+            className="inline-flex items-center rounded-lg border border-[#E6DFD5] bg-[#FAF7F2] p-0.5"
           >
             <button
               type="button"
               onClick={() => setSortByRank(false)}
-              className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 !sortByRank
                   ? 'bg-white text-[#1C1917] shadow-xs'
                   : 'text-[#6B655E] hover:text-[#1C1917]'
@@ -141,7 +143,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
             <button
               type="button"
               onClick={() => setSortByRank(true)}
-              className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                 sortByRank
                   ? 'bg-white text-[#9F1239] shadow-xs'
                   : 'text-[#6B655E] hover:text-[#1C1917]'
@@ -152,14 +154,14 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
             </button>
           </div>
 
-          <label className="inline-flex items-center gap-2 text-xs text-[#57534E] cursor-pointer select-none">
+          <label className="inline-flex min-h-[38px] items-center gap-2 text-xs text-[#57534E] cursor-pointer select-none">
             <input
               type="checkbox"
               checked={config.tieBreakByChair}
               onChange={(e) => onChangeConfig({ tieBreakByChair: e.target.checked })}
-              className="h-3.5 w-3.5 rounded border-[#D6D0C6] accent-[#9F1239]"
+              className="h-4 w-4 rounded border-[#D6D0C6] accent-[#9F1239]"
             />
-            <span>Phân định đồng điểm theo Trưởng ban (GK1)</span>
+            <span>Ưu tiên điểm Trưởng ban (GK1) khi đồng điểm</span>
           </label>
         </div>
 
@@ -167,7 +169,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
           <button
             type="button"
             onClick={onLoadSampleScores}
-            className="inline-flex items-center gap-1.5 rounded border border-[#D6D0C6] bg-white px-3 py-1.5 text-xs font-medium text-[#1C1917] transition-colors hover:bg-[#FAF8F5] whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[#D6D0C6] bg-white px-3 py-1.5 text-xs font-medium text-[#1C1917] transition-colors hover:bg-[#FAF7F2] whitespace-nowrap shrink-0 cursor-pointer"
           >
             <Sparkles className="h-3.5 w-3.5 text-[#B45309]" aria-hidden="true" />
             <span>Điền điểm mẫu</span>
@@ -176,17 +178,17 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
           <button
             type="button"
             onClick={onExportCsv}
-            className="inline-flex items-center gap-1.5 rounded border border-[#D6D0C6] bg-white px-3 py-1.5 text-xs font-medium text-[#1C1917] transition-colors hover:bg-[#FAF8F5] whitespace-nowrap shrink-0 cursor-pointer"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[#D6D0C6] bg-white px-3 py-1.5 text-xs font-medium text-[#1C1917] transition-colors hover:bg-[#FAF7F2] whitespace-nowrap shrink-0 cursor-pointer"
           >
             <Download className="h-3.5 w-3.5 text-[#57534E]" aria-hidden="true" />
-            <span>Xuất Excel (CSV)</span>
+            <span>Xuất Excel</span>
           </button>
 
           {hasAnyScore && !confirmClear && (
             <button
               type="button"
               onClick={() => setConfirmClear(true)}
-              className="inline-flex items-center gap-1.5 rounded border border-[#E5E0D8] bg-white px-3 py-1.5 text-xs font-medium text-[#6B655E] transition-colors hover:border-[#DC2626]/40 hover:text-[#DC2626] whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[#E6DFD5] bg-white px-3 py-1.5 text-xs font-medium text-[#6B655E] transition-colors hover:border-[#DC2626]/40 hover:text-[#DC2626] whitespace-nowrap shrink-0 cursor-pointer"
             >
               <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Xóa điểm</span>
@@ -194,22 +196,22 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
           )}
 
           {confirmClear && (
-            <div className="inline-flex items-center gap-1.5 rounded border border-[#DC2626]/40 bg-[#FEF2F2] px-2.5 py-1">
-              <span className="text-xs font-medium text-[#991B1B]">Xóa hết điểm?</span>
+            <div className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[#DC2626]/40 bg-[#FEF2F2] px-3 py-1">
+              <span className="text-xs font-medium text-[#991B1B]">Xóa hết?</span>
               <button
                 type="button"
                 onClick={() => {
                   onClearAllScores();
                   setConfirmClear(false);
                 }}
-                className="rounded bg-[#DC2626] px-2 py-0.5 text-xs font-semibold text-white hover:bg-[#B91C1C] cursor-pointer"
+                className="rounded bg-[#DC2626] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#B91C1C] cursor-pointer"
               >
                 Xác nhận
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmClear(false)}
-                className="rounded px-1.5 py-0.5 text-xs font-medium text-[#57534E] hover:text-[#1C1917] cursor-pointer"
+                className="rounded px-2 py-1 text-xs font-medium text-[#57534E] hover:text-[#1C1917] cursor-pointer"
               >
                 Hủy
               </button>
@@ -218,11 +220,166 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
         </div>
       </div>
 
-      {/* Main 11-Column Scoring Ledger */}
-      <div className="overflow-x-auto rounded-md border border-[#E5E0D8] bg-white">
+      {/* MOBILE CARD LEDGER (< md): Ergonomic touch scoring without horizontal scroll */}
+      <div className="space-y-3 md:hidden">
+        {displayedRows.map((row) => {
+          const isExpanded = row.id === selectedId;
+          return (
+            <div
+              key={row.id}
+              className={`rounded-xl border bg-white transition-colors ${
+                isExpanded
+                  ? 'border-[#9F1239]/50 shadow-xs'
+                  : 'border-[#E6DFD5]'
+              }`}
+            >
+              {/* Card Header — tap to expand/collapse */}
+              <button
+                type="button"
+                onClick={() => onSelectId(isExpanded ? '' : row.id)}
+                className="flex w-full min-h-[60px] items-center justify-between gap-3 px-4 py-3 text-left cursor-pointer"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 text-xs text-[#6B655E]">
+                    <span className="font-mono font-bold text-[#9F1239]">
+                      #{String(row.stt).padStart(2, '0')}
+                    </span>
+                    <span aria-hidden="true">·</span>
+                    <span className="font-semibold text-[#1C1917]">Lớp {row.className}</span>
+                    {row.isTeacherTheme && (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span className="font-mono text-[11px] font-medium text-[#9F1239]">
+                          +3đ CĐ
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-sm font-medium text-[#1C1917] line-clamp-1">
+                    {row.performanceName}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right">
+                    <div className="font-mono text-base font-bold tabular-nums text-[#1C1917]">
+                      {formatTotalScore(row.totalScore)}
+                    </div>
+                    <div className={`text-[11px] ${PRIZE_TEXT_STYLE[row.prize]}`}>
+                      {row.rank !== null ? `Hạng ${row.rank} · ${row.prizeLabel}` : 'Chưa chấm'}
+                    </div>
+                  </div>
+                  {isExpanded ? (
+                    <ChevronUp className="h-4 w-4 text-[#6B655E]" aria-hidden="true" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-[#6B655E]" aria-hidden="true" />
+                  )}
+                </div>
+              </button>
+
+              {/* Expanded Touch Scoring Body */}
+              {isExpanded && (
+                <div className="border-t border-[#EFEAE2] px-4 py-3.5 space-y-3.5 bg-[#FAF7F2]/40">
+                  {/* Editable Class & Performance Title */}
+                  <div className="grid grid-cols-4 gap-2">
+                    <div className="col-span-1">
+                      <label className="block text-[11px] font-medium text-[#6B655E] mb-1">
+                        Lớp
+                      </label>
+                      <input
+                        type="text"
+                        value={row.className}
+                        onChange={(e) => onUpdateClassName(row.id, e.target.value)}
+                        className="w-full min-h-[44px] rounded-lg border border-[#D6D0C6] bg-white px-2.5 text-sm font-semibold text-[#1C1917] focus:border-[#9F1239] focus:outline-none"
+                      />
+                    </div>
+                    <div className="col-span-3">
+                      <label className="block text-[11px] font-medium text-[#6B655E] mb-1">
+                        Tên tiết mục
+                      </label>
+                      <input
+                        type="text"
+                        value={row.performanceName}
+                        onChange={(e) => onUpdatePerformanceName(row.id, e.target.value)}
+                        className="w-full min-h-[44px] rounded-lg border border-[#D6D0C6] bg-white px-2.5 text-sm text-[#1C1917] focus:border-[#9F1239] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Teacher theme +3đ toggle */}
+                  <label className="flex min-h-[44px] items-center justify-between rounded-lg border border-[#E6DFD5] bg-white px-3 py-2 text-xs text-[#44403C] cursor-pointer">
+                    <span>
+                      Chủ đề ca ngợi thầy cô{' '}
+                      <strong className="font-mono text-[#9F1239]">(+3đ)</strong>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={row.isTeacherTheme}
+                      onChange={() => onToggleTeacherTheme(row.id)}
+                      className="h-4.5 w-4.5 rounded border-[#D6D0C6] accent-[#9F1239]"
+                    />
+                  </label>
+
+                  {/* 5 Judge 48px Touch Inputs */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {JUDGES.map((judge) => {
+                      const key = `${row.id}-${judge.id}`;
+                      const scoreVal = row.scores[judge.id];
+                      const displayValue =
+                        key in draftScores
+                          ? draftScores[key]
+                          : scoreVal !== null
+                            ? String(scoreVal)
+                            : '';
+                      const assignedIds = config.judgeCriteria[judge.id] ?? [];
+                      const critNames = assignedIds
+                        .map((cId) => getCriterionById(cId)?.shortName)
+                        .filter(Boolean)
+                        .join(' + ');
+                      const maxScore = getJudgeMaxScore(judge.id, config.judgeCriteria);
+
+                      return (
+                        <div key={judge.id} className="flex flex-col">
+                          <label className="text-[11px] font-medium text-[#44403C] truncate">
+                            <span className="font-mono font-bold text-[#1C1917]">
+                              {judge.shortLabel}
+                            </span>{' '}
+                            {judge.fullName}
+                          </label>
+                          <div className="text-[10px] text-[#6B655E] truncate mb-1">
+                            {critNames || 'Chưa chọn TC'} ·{' '}
+                            <span className="font-mono font-semibold text-[#9F1239]">
+                              /{maxScore}đ
+                            </span>
+                          </div>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            disabled={maxScore === 0}
+                            placeholder={maxScore > 0 ? `0–${maxScore}` : '—'}
+                            value={displayValue}
+                            onChange={(e) =>
+                              onScoreInputChange(row.id, judge.id, e.target.value)
+                            }
+                            onBlur={() => onScoreInputBlur(row.id, judge.id)}
+                            className="w-full min-h-[48px] rounded-lg border border-[#D6D0C6] bg-white px-3 text-center font-mono text-base font-semibold tabular-nums text-[#1C1917] placeholder:text-[#A8A29E] focus:border-[#9F1239] focus:outline-none focus:ring-2 focus:ring-[#9F1239]/25 disabled:opacity-45"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* DESKTOP 11-COLUMN SPREADSHEET LEDGER (>= md) */}
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-[#E6DFD5] bg-white">
         <table className="w-full min-w-[1140px] border-collapse text-left text-sm">
           <thead>
-            <tr className="border-b border-[#E5E0D8] bg-[#FAF8F5] text-xs text-[#57534E]">
+            <tr className="border-b border-[#E6DFD5] bg-[#FAF7F2] text-xs text-[#57534E]">
               <th scope="col" className="w-12 px-3 py-3 text-center font-semibold">
                 STT
               </th>
@@ -244,7 +401,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                   <th
                     key={judge.id}
                     scope="col"
-                    className="w-28 border-l border-[#ECE7DF] px-2 py-2.5 text-center align-top"
+                    className="w-28 border-l border-[#EFEAE2] px-2 py-2.5 text-center align-top"
                   >
                     <div className="font-mono text-xs font-bold text-[#1C1917]">
                       {judge.shortLabel}
@@ -274,27 +431,27 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
               })}
               <th
                 scope="col"
-                className="w-28 border-l border-[#E5E0D8] bg-[#F5F2EC] px-3 py-3 text-right font-semibold text-[#1C1917]"
+                className="w-28 border-l border-[#E6DFD5] bg-[#F4EFE6] px-3 py-3 text-right font-semibold text-[#1C1917]"
               >
                 <div>Tổng điểm</div>
                 <div className="text-[10px] font-normal text-[#6B655E]">(100 + 3đ)</div>
               </th>
               <th
                 scope="col"
-                className="w-20 border-l border-[#ECE7DF] bg-[#F5F2EC] px-2 py-3 text-center font-semibold text-[#1C1917]"
+                className="w-20 border-l border-[#EFEAE2] bg-[#F4EFE6] px-2 py-3 text-center font-semibold text-[#1C1917]"
               >
                 Xếp thứ
               </th>
               <th
                 scope="col"
-                className="w-32 border-l border-[#ECE7DF] bg-[#F5F2EC] px-3 py-3 font-semibold text-[#1C1917]"
+                className="w-32 border-l border-[#EFEAE2] bg-[#F4EFE6] px-3 py-3 font-semibold text-[#1C1917]"
               >
                 Xếp giải
               </th>
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-[#ECE7DF]">
+          <tbody className="divide-y divide-[#EFEAE2]">
             {displayedRows.map((row, rowIdx) => {
               const isSelected = row.id === selectedId;
               const isTopThree = row.rank !== null && row.rank <= 3;
@@ -307,35 +464,32 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                     isSelected
                       ? 'bg-[#FFF1F2]/45'
                       : isTopThree
-                        ? 'bg-[#FFFBEB]/35 hover:bg-[#FAF8F5]'
-                        : 'hover:bg-[#FAF8F5]'
+                        ? 'bg-[#FFFBEB]/35 hover:bg-[#FAF7F2]'
+                        : 'hover:bg-[#FAF7F2]'
                   }`}
                 >
-                  {/* 1. STT */}
                   <td className="px-3 py-2 text-center font-mono text-xs font-semibold tabular-nums text-[#6B655E]">
                     {String(row.stt).padStart(2, '0')}
                   </td>
 
-                  {/* 2. Tên lớp */}
                   <td className="px-2 py-1.5">
                     <input
                       type="text"
                       aria-label={`Tên lớp tiết mục ${row.stt}`}
                       value={row.className}
                       onChange={(e) => onUpdateClassName(row.id, e.target.value)}
-                      className="w-full rounded border border-transparent bg-transparent px-1.5 py-1.5 text-sm font-semibold text-[#1C1917] hover:border-[#E5E0D8] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+                      className="w-full rounded border border-transparent bg-transparent px-1.5 py-1.5 text-sm font-semibold text-[#1C1917] hover:border-[#E6DFD5] focus:border-[#9F1239] focus:bg-white focus:outline-none"
                     />
                   </td>
 
-                  {/* 3. Tên Tiết mục + Toggle +3đ CĐ thầy cô */}
                   <td className="px-2 py-1.5">
                     <input
                       type="text"
                       aria-label={`Tên tiết mục lớp ${row.className}`}
-                      placeholder="Chưa đăng ký tiết mục (nhấp để nhập)"
+                      placeholder="Nhập tên tiết mục"
                       value={row.performanceName}
                       onChange={(e) => onUpdatePerformanceName(row.id, e.target.value)}
-                      className="w-full rounded border border-transparent bg-transparent px-2 py-1 text-sm text-[#1C1917] placeholder:text-[#A8A29E] hover:border-[#E5E0D8] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+                      className="w-full rounded border border-transparent bg-transparent px-2 py-1 text-sm text-[#1C1917] placeholder:text-[#A8A29E] hover:border-[#E6DFD5] focus:border-[#9F1239] focus:bg-white focus:outline-none"
                     />
                     <label
                       onClick={(e) => e.stopPropagation()}
@@ -353,7 +507,6 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                     </label>
                   </td>
 
-                  {/* 4–8. GK1 .. GK5 */}
                   {JUDGES.map((judge, judgeIdx) => {
                     const key = `${row.id}-${judge.id}`;
                     const scoreVal = row.scores[judge.id];
@@ -368,7 +521,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                     return (
                       <td
                         key={judge.id}
-                        className="border-l border-[#ECE7DF] px-1.5 py-1.5 text-center"
+                        className="border-l border-[#EFEAE2] px-1.5 py-1.5 text-center"
                       >
                         <input
                           ref={(el) => {
@@ -392,8 +545,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                     );
                   })}
 
-                  {/* 9. Tổng điểm */}
-                  <td className="border-l border-[#E5E0D8] bg-[#FAF8F5]/60 px-3 py-2 text-right">
+                  <td className="border-l border-[#E6DFD5] bg-[#FAF7F2]/60 px-3 py-2 text-right">
                     <div className="font-mono text-sm font-bold tabular-nums text-[#1C1917]">
                       {formatTotalScore(row.totalScore)}
                     </div>
@@ -404,8 +556,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                     )}
                   </td>
 
-                  {/* 10. Xếp thứ */}
-                  <td className="border-l border-[#ECE7DF] bg-[#FAF8F5]/60 px-2 py-2 text-center font-mono text-sm font-semibold tabular-nums">
+                  <td className="border-l border-[#EFEAE2] bg-[#FAF7F2]/60 px-2 py-2 text-center font-mono text-sm font-semibold tabular-nums">
                     {row.rank !== null ? (
                       <span
                         className={
@@ -431,8 +582,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                     )}
                   </td>
 
-                  {/* 11. Xếp giải */}
-                  <td className="border-l border-[#ECE7DF] bg-[#FAF8F5]/60 px-3 py-2 text-sm whitespace-nowrap">
+                  <td className="border-l border-[#EFEAE2] bg-[#FAF7F2]/60 px-3 py-2 text-sm whitespace-nowrap">
                     {row.rank !== null ? (
                       <span className={PRIZE_TEXT_STYLE[row.prize]}>{row.prizeLabel}</span>
                     ) : (
@@ -449,11 +599,11 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
       {/* Quiet legend */}
       <div className="no-print flex flex-wrap items-center justify-between gap-2 text-xs text-[#6B655E]">
         <p>
-          Gợi ý: Tích chọn <strong className="font-medium text-[#1C1917]">CĐ ca ngợi thầy cô (+3đ)</strong> để hệ thống tự động cộng thêm 3 điểm thưởng vào Tổng điểm (tối đa 103đ). Dữ liệu tự động lưu trên trình duyệt.
+          Gợi ý: Tích chọn <strong className="font-medium text-[#1C1917]">CĐ ca ngợi thầy cô (+3đ)</strong> để cộng thêm 3 điểm thưởng (tối đa 103đ). Dữ liệu tự động lưu trên trình duyệt.
         </p>
         {evaluated.some((r) => r.resolvedByChair) && (
           <p className="text-[#B45309]">
-            * Ký hiệu sao: Các lớp đồng tổng điểm được phân định thứ hạng theo điểm Trưởng ban (GK1 Lê Thị Hoa).
+            * Ký hiệu sao: Các lớp đồng tổng điểm được phân định theo điểm Trưởng ban (GK1 Lê Thị Hoa).
           </p>
         )}
       </div>
