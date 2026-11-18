@@ -1,40 +1,58 @@
 import React from 'react';
 import { Award, Download, Printer } from 'lucide-react';
-import { JUDGES, SECRETARY_NAME } from '../data/initialData';
-import { EvaluatedPerformance, PrizeTier } from '../types/scoring';
+import {
+  EvaluatedPerformance,
+  EventMetadata,
+  JudgeInfo,
+  PrizeConfig,
+  PrizeTier,
+} from '../types/scoring';
 import { formatTotalScore } from '../utils/scoring';
 
 interface StandingsViewProps {
   evaluated: EvaluatedPerformance[];
+  judges: JudgeInfo[];
+  eventMeta: EventMetadata;
+  prizeConfig: PrizeConfig;
   onExportCsv: () => void;
   onPrint: () => void;
   onBackToLedger: () => void;
 }
 
-const PRIZE_GROUPS: {
-  tier: Exclude<PrizeTier, 'none'>;
-  title: string;
-  quota: number;
-  accentClass: string;
-}[] = [
-  { tier: 'nhat', title: 'Giải Nhất', quota: 1, accentClass: 'text-[#9F1239]' },
-  { tier: 'nhi', title: 'Giải Nhì', quota: 2, accentClass: 'text-[#B45309]' },
-  { tier: 'ba', title: 'Giải Ba', quota: 2, accentClass: 'text-[#1E3A8A]' },
-  { tier: 'khuyen_khich', title: 'Giải Khuyến khích', quota: 6, accentClass: 'text-[#374151]' },
-];
-
 export const StandingsView: React.FC<StandingsViewProps> = ({
   evaluated,
+  judges,
+  eventMeta,
+  prizeConfig,
   onExportCsv,
   onPrint,
   onBackToLedger,
 }) => {
+  const prizeGroups: {
+    tier: Exclude<PrizeTier, 'none'>;
+    title: string;
+    quota: number;
+    accentClass: string;
+  }[] = [
+    { tier: 'nhat', title: 'Giải Nhất', quota: prizeConfig.nhat, accentClass: 'text-[#9F1239]' },
+    { tier: 'nhi', title: 'Giải Nhì', quota: prizeConfig.nhi, accentClass: 'text-[#B45309]' },
+    { tier: 'ba', title: 'Giải Ba', quota: prizeConfig.ba, accentClass: 'text-[#1E3A8A]' },
+    {
+      tier: 'khuyen_khich',
+      title: 'Giải Khuyến khích',
+      quota: prizeConfig.khuyen_khich,
+      accentClass: 'text-[#374151]',
+    },
+  ];
+
   const rankedList = evaluated
     .filter((item) => item.rank !== null)
     .sort((a, b) => {
       if ((a.rank ?? 99) !== (b.rank ?? 99)) return (a.rank ?? 99) - (b.rank ?? 99);
       return (b.totalScore ?? 0) - (a.totalScore ?? 0);
     });
+
+  const chairJudge = judges.find((j) => j.isChair) ?? judges[0];
 
   return (
     <div className="space-y-6">
@@ -44,7 +62,8 @@ export const StandingsView: React.FC<StandingsViewProps> = ({
             Bảng tổng sắp kết quả & Cơ cấu trao giải
           </h2>
           <p className="mt-1 text-sm text-[#57534E]">
-            Tổng hợp thứ hạng tự động từ 5 thành viên Ban Giám khảo ({rankedList.length}/11 tiết mục đã có điểm)
+            Tổng hợp thứ hạng tự động từ {judges.length} cột tiêu chí chấm ({rankedList.length}/
+            {evaluated.length} tiết mục đã có điểm)
           </p>
         </div>
 
@@ -63,7 +82,7 @@ export const StandingsView: React.FC<StandingsViewProps> = ({
             className="inline-flex min-h-[42px] items-center gap-1.5 rounded-lg bg-[#9F1239] px-3.5 py-2 text-xs font-semibold text-white hover:bg-[#881337] cursor-pointer"
           >
             <Printer className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>In biên bản</span>
+            <span>In biên bản gửi các lớp</span>
           </button>
         </div>
       </div>
@@ -89,7 +108,7 @@ export const StandingsView: React.FC<StandingsViewProps> = ({
         <>
           {/* Prize Tier Cards */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {PRIZE_GROUPS.map((group) => {
+            {prizeGroups.map((group) => {
               const winners = rankedList.filter((item) => item.prize === group.tier);
               return (
                 <div
@@ -184,7 +203,9 @@ export const StandingsView: React.FC<StandingsViewProps> = ({
                   <th className="px-4 py-3 w-24">Lớp</th>
                   <th className="px-4 py-3">Tên tiết mục</th>
                   <th className="px-4 py-3 text-center w-20">STT</th>
-                  <th className="px-4 py-3 text-right w-28">GK1 (TB)</th>
+                  <th className="px-4 py-3 text-right w-28">
+                    Điểm {chairJudge?.shortLabel ?? 'TB'}
+                  </th>
                   <th className="px-4 py-3 text-right w-28">Tổng điểm</th>
                   <th className="px-4 py-3 w-40">Xếp giải</th>
                 </tr>
@@ -203,7 +224,9 @@ export const StandingsView: React.FC<StandingsViewProps> = ({
                       {String(item.stt).padStart(2, '0')}
                     </td>
                     <td className="px-4 py-2.5 text-right font-mono text-xs tabular-nums text-[#57534E]">
-                      {item.scores.gk1 !== null ? item.scores.gk1 : '—'}
+                      {chairJudge && item.scores[chairJudge.id] !== null
+                        ? item.scores[chairJudge.id]
+                        : '—'}
                     </td>
                     <td className="px-4 py-2.5 text-right font-mono font-bold tabular-nums text-[#9F1239]">
                       {formatTotalScore(item.totalScore)}
@@ -227,31 +250,14 @@ export const StandingsView: React.FC<StandingsViewProps> = ({
             </table>
           </div>
 
-          {/* Official Jury Sign-off Preview */}
-          <div className="rounded-xl border border-[#E6DFD5] bg-white p-5 sm:p-6">
+          {/* Clean notice about anonymous printed report */}
+          <div className="rounded-xl border border-[#E6DFD5] bg-white p-5">
             <h3 className="text-sm font-bold text-[#1C1917]">
-              Thành phần ký xác nhận biên bản chấm điểm
+              Chế độ in & gửi biên bản cho các lớp
             </h3>
-            <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6 text-center">
-              {JUDGES.map((j) => (
-                <div key={j.id} className="space-y-1">
-                  <div className="text-xs font-semibold text-[#1C1917]">{j.shortLabel}</div>
-                  <div className="text-[11px] text-[#6B655E]">
-                    {j.isChair ? 'Trưởng ban GK' : 'Ủy viên BGK'}
-                  </div>
-                  <div className="pt-6 sm:pt-8 text-xs font-semibold text-[#1C1917]">
-                    {j.fullName}
-                  </div>
-                </div>
-              ))}
-              <div className="space-y-1 border-t pt-3 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4 border-[#EFEAE2]">
-                <div className="text-xs font-semibold text-[#9F1239]">Thư ký hội thi</div>
-                <div className="text-[11px] text-[#6B655E]">Tổng hợp biểu điểm</div>
-                <div className="pt-6 sm:pt-8 text-xs font-semibold text-[#1C1917]">
-                  {SECRETARY_NAME}
-                </div>
-              </div>
-            </div>
+            <p className="mt-1.5 text-xs sm:text-sm text-[#57534E]">
+              Khi bấm <strong>In biên bản</strong> hoặc <strong>Xuất Excel</strong>, các cột điểm sẽ chỉ hiển thị <strong>tên Tiêu chí chấm</strong> (ví dụ: <em>Điểm Chủ đề, Trang phục & ĐC, Dàn dựng...</em>) và phần ký xác nhận chung (<em>Đại diện Ban Giám khảo · Ban Tổ chức · Thư ký: {eventMeta.secretaryName}</em>), không công khai tên riêng từng Giám khảo.
+            </p>
           </div>
         </>
       )}

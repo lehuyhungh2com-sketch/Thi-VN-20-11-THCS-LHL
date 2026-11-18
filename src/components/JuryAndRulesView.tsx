@@ -1,94 +1,195 @@
 import React from 'react';
+import { Plus, RotateCcw, Trash2 } from 'lucide-react';
 import {
-  CRITERIA,
-  EVENT_DATE_RANGE,
-  EVENT_TITLE,
-  JUDGES,
-  SCHOOL_NAME,
-  SECRETARY_NAME,
-} from '../data/initialData';
-import { ScoringConfig } from '../types/scoring';
+  CriterionId,
+  CriterionInfo,
+  EventMetadata,
+  JudgeId,
+  JudgeInfo,
+  PrizeConfig,
+  ScoringConfig,
+} from '../types/scoring';
 import { getCriterionById, getJudgeMaxScore } from '../utils/scoring';
 
 interface JuryViewProps {
+  judges: JudgeInfo[];
+  criteria: CriterionInfo[];
   config: ScoringConfig;
+  eventMeta: EventMetadata;
+  performanceCount: number;
+  prizeConfig: PrizeConfig;
+  onUpdateJudge: (judgeId: JudgeId, partial: Partial<JudgeInfo>) => void;
+  onSetChairJudge: (judgeId: JudgeId) => void;
+  onAddJudge: () => void;
+  onRemoveJudge: (judgeId: JudgeId) => void;
+  onUpdateEventMeta: (partial: Partial<EventMetadata>) => void;
+  onResetJudges: () => void;
   onBackToLedger: () => void;
 }
 
-export const JuryView: React.FC<JuryViewProps> = ({ config, onBackToLedger }) => {
+export const JuryView: React.FC<JuryViewProps> = ({
+  judges,
+  criteria,
+  config,
+  eventMeta,
+  performanceCount,
+  prizeConfig,
+  onUpdateJudge,
+  onSetChairJudge,
+  onAddJudge,
+  onRemoveJudge,
+  onUpdateEventMeta,
+  onResetJudges,
+  onBackToLedger,
+}) => {
+  const totalPrizes =
+    prizeConfig.nhat + prizeConfig.nhi + prizeConfig.ba + prizeConfig.khuyen_khich;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-display text-2xl font-bold text-[#1C1917]">
-            Ban Giám khảo & Tổ Thư ký Hội thi
+            Ban Giám khảo & Tổ Thư ký (Tùy chỉnh linh hoạt)
           </h2>
           <p className="mt-1 text-sm text-[#57534E]">
-            {SCHOOL_NAME} · {EVENT_TITLE} ({EVENT_DATE_RANGE})
+            Chỉnh sửa tên, vai trò Giám khảo hoặc Thư ký để sử dụng cho nhiều hội thi khác nhau
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onBackToLedger}
-          className="self-start min-h-[42px] rounded-lg border border-[#D6D0C6] bg-white px-4 py-2 text-xs font-semibold text-[#1C1917] hover:bg-[#FAF7F2] cursor-pointer"
-        >
-          Quay lại Biểu chấm điểm
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onResetJudges}
+            className="inline-flex min-h-[42px] items-center gap-1.5 rounded-lg border border-[#D6D0C6] bg-white px-3.5 py-2 text-xs font-medium text-[#1C1917] hover:bg-[#FAF7F2] cursor-pointer"
+          >
+            <RotateCcw className="h-3.5 w-3.5 text-[#57534E]" aria-hidden="true" />
+            <span>Khôi phục BGK mặc định</span>
+          </button>
+          <button
+            type="button"
+            onClick={onBackToLedger}
+            className="min-h-[42px] rounded-lg bg-[#9F1239] px-4 py-2 text-xs font-semibold text-white hover:bg-[#881337] cursor-pointer"
+          >
+            Quay lại Biểu chấm điểm
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        {/* Editable Judges List */}
         <div className="lg:col-span-2 rounded-xl border border-[#E6DFD5] bg-white overflow-hidden">
-          <div className="border-b border-[#E6DFD5] bg-[#FAF7F2] px-5 py-3">
+          <div className="flex items-center justify-between border-b border-[#E6DFD5] bg-[#FAF7F2] px-5 py-3">
             <h3 className="text-sm font-bold text-[#1C1917]">
-              Danh sách 05 thành viên Ban Giám khảo & Tiêu chí phụ trách
+              Danh sách {judges.length} thành viên Ban Giám khảo
             </h3>
+            <button
+              type="button"
+              onClick={onAddJudge}
+              className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-[#D6D0C6] bg-white px-3 py-1 text-xs font-semibold text-[#1C1917] hover:bg-[#FAF7F2] cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5 text-[#9F1239]" aria-hidden="true" />
+              <span>Thêm GK</span>
+            </button>
           </div>
+
           <div className="divide-y divide-[#EFEAE2]">
-            {JUDGES.map((judge, idx) => {
+            {judges.map((judge, idx) => {
               const assignedIds = config.judgeCriteria[judge.id] ?? [];
               const critNames = assignedIds
                 .map((cId) => {
-                  const c = getCriterionById(cId);
+                  const c = getCriterionById(cId, criteria);
                   return c ? `${c.name} (${c.maxPoints}đ)` : null;
                 })
                 .filter(Boolean)
                 .join(' · ');
-              const maxScore = getJudgeMaxScore(judge.id, config.judgeCriteria);
+              const maxScore = getJudgeMaxScore(judge.id, config.judgeCriteria, criteria);
 
               return (
-                <div
-                  key={judge.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 sm:px-5 py-4"
-                >
-                  <div className="flex items-start gap-3.5 sm:gap-4">
-                    <span className="font-mono text-xs font-bold text-[#6B655E] w-7 pt-0.5">
-                      0{idx + 1}
-                    </span>
-                    <div>
-                      <div className="text-sm font-semibold text-[#1C1917]">
-                        {judge.fullName}{' '}
-                        <span className="font-mono text-xs font-normal text-[#6B655E]">
-                          ({judge.shortLabel})
-                        </span>
-                      </div>
-                      <div className="text-xs text-[#6B655E]">{judge.role}</div>
-                      <div className="mt-1 text-xs text-[#44403C]">
-                        Phụ trách:{' '}
-                        <span className="font-medium text-[#1C1917]">
-                          {critNames || 'Chưa phân công tiêu chí'}
-                        </span>
-                      </div>
+                <div key={judge.id} className="p-4 sm:px-5 space-y-3">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-12 sm:items-center">
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-medium text-[#6B655E] mb-1">
+                        Ký hiệu
+                      </label>
+                      <input
+                        type="text"
+                        value={judge.shortLabel}
+                        onChange={(e) =>
+                          onUpdateJudge(judge.id, { shortLabel: e.target.value })
+                        }
+                        className="w-full min-h-[40px] rounded-lg border border-[#D6D0C6] bg-[#FAF7F2] px-2.5 font-mono text-xs font-bold text-[#1C1917] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-5">
+                      <label className="block text-[10px] font-medium text-[#6B655E] mb-1">
+                        Họ và tên Giám khảo {idx + 1}
+                      </label>
+                      <input
+                        type="text"
+                        value={judge.fullName}
+                        onChange={(e) =>
+                          onUpdateJudge(judge.id, { fullName: e.target.value })
+                        }
+                        className="w-full min-h-[40px] rounded-lg border border-[#D6D0C6] bg-white px-3 text-sm font-semibold text-[#1C1917] focus:border-[#9F1239] focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-5">
+                      <label className="block text-[10px] font-medium text-[#6B655E] mb-1">
+                        Chức vụ / Vai trò
+                      </label>
+                      <input
+                        type="text"
+                        value={judge.role}
+                        onChange={(e) => onUpdateJudge(judge.id, { role: e.target.value })}
+                        className="w-full min-h-[40px] rounded-lg border border-[#D6D0C6] bg-white px-3 text-sm text-[#44403C] focus:border-[#9F1239] focus:outline-none"
+                      />
                     </div>
                   </div>
-                  <div className="sm:text-right shrink-0 pl-10 sm:pl-0">
-                    <div className="font-mono text-sm font-bold tabular-nums text-[#9F1239]">
-                      Tối đa {maxScore}đ
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div className="text-[#57534E]">
+                      Tiêu chí phụ trách:{' '}
+                      <span className="font-medium text-[#1C1917]">
+                        {critNames || 'Chưa phân công'}
+                      </span>{' '}
+                      ·{' '}
+                      <span className="font-mono font-semibold text-[#9F1239]">
+                        Tối đa {maxScore}đ
+                      </span>
                     </div>
-                    {judge.isChair && (
-                      <div className="text-[11px] font-medium text-[#6B655E]">
-                        Phân định đồng điểm
-                      </div>
-                    )}
+
+                    <div className="flex items-center gap-3">
+                      <label className="inline-flex min-h-[36px] items-center gap-1.5 cursor-pointer text-xs">
+                        <input
+                          type="radio"
+                          name="chair-judge"
+                          checked={Boolean(judge.isChair)}
+                          onChange={() => onSetChairJudge(judge.id)}
+                          className="accent-[#9F1239]"
+                        />
+                        <span
+                          className={
+                            judge.isChair ? 'font-semibold text-[#9F1239]' : 'text-[#57534E]'
+                          }
+                        >
+                          Trưởng ban GK
+                        </span>
+                      </label>
+
+                      {judges.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveJudge(judge.id)}
+                          title="Xóa giám khảo này"
+                          className="inline-flex min-h-[36px] items-center gap-1 rounded px-2 text-xs text-[#6B655E] hover:bg-[#FEF2F2] hover:text-[#DC2626] cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>Xóa</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -96,32 +197,42 @@ export const JuryView: React.FC<JuryViewProps> = ({ config, onBackToLedger }) =>
           </div>
         </div>
 
-        <div className="rounded-xl border border-[#E6DFD5] bg-white p-5 flex flex-col justify-between">
-          <div>
-            <div className="text-xs font-semibold text-[#9F1239]">Thư ký Hội thi</div>
-            <h3 className="mt-1 font-display text-xl font-bold text-[#1C1917]">
-              {SECRETARY_NAME}
-            </h3>
-            <p className="mt-3 text-sm leading-relaxed text-[#57534E]">
-              Phụ trách thu nhận điểm từng tiêu chí từ 05 thành viên Ban Giám khảo ngay sau mỗi tiết mục biểu diễn, nhập điểm vào biểu chấm, rà soát cộng điểm thưởng chủ đề thầy cô (+3đ) và xuất biên bản trình Ban Tổ chức.
+        {/* Editable Secretary & Event Summary */}
+        <div className="rounded-xl border border-[#E6DFD5] bg-white p-5 flex flex-col justify-between space-y-5">
+          <div className="space-y-4">
+            <div>
+              <div className="text-xs font-semibold text-[#9F1239]">Thư ký Hội thi</div>
+              <label className="block text-[11px] text-[#6B655E] mt-2 mb-1">
+                Họ và tên Thư ký (có thể để trống hoặc thay đổi)
+              </label>
+              <input
+                type="text"
+                value={eventMeta.secretaryName}
+                onChange={(e) => onUpdateEventMeta({ secretaryName: e.target.value })}
+                className="w-full min-h-[42px] rounded-lg border border-[#D6D0C6] bg-[#FAF7F2] px-3 text-sm font-semibold text-[#1C1917] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+              />
+            </div>
+
+            <p className="text-xs sm:text-sm leading-relaxed text-[#57534E]">
+              Lưu ý bảo mật khi công bố: Biên bản in và file Excel gửi về các lớp chỉ hiển thị cột{' '}
+              <strong className="text-[#1C1917]">Tên Tiêu chí chấm</strong> (ví dụ: Điểm Chủ đề, Trang phục & ĐC...), không in tên riêng các Giám khảo.
             </p>
           </div>
-          <dl className="mt-6 space-y-2 border-t border-[#EFEAE2] pt-4 text-xs">
+
+          <dl className="space-y-2 border-t border-[#EFEAE2] pt-4 text-xs">
             <div className="flex justify-between">
               <dt className="text-[#6B655E]">Tổng số tiết mục</dt>
-              <dd className="font-mono font-semibold text-[#1C1917]">11 tiết mục</dd>
+              <dd className="font-mono font-semibold text-[#1C1917]">
+                {performanceCount} tiết mục
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-[#6B655E]">Số lượng Giám khảo</dt>
-              <dd className="font-mono font-semibold text-[#1C1917]">05 Giám khảo</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-[#6B655E]">Thang điểm chuẩn</dt>
-              <dd className="font-mono font-semibold text-[#1C1917]">100đ (+3đ CĐ thầy cô)</dd>
+              <dd className="font-mono font-semibold text-[#1C1917]">{judges.length} Giám khảo</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-[#6B655E]">Tổng số giải thưởng</dt>
-              <dd className="font-mono font-semibold text-[#1C1917]">11 giải</dd>
+              <dd className="font-mono font-semibold text-[#1C1917]">{totalPrizes} giải</dd>
             </div>
           </dl>
         </div>
@@ -131,187 +242,283 @@ export const JuryView: React.FC<JuryViewProps> = ({ config, onBackToLedger }) =>
 };
 
 interface RulesViewProps {
+  criteria: CriterionInfo[];
+  eventMeta: EventMetadata;
+  prizeConfig: PrizeConfig;
+  onUpdateCriterion: (id: CriterionId, partial: Partial<CriterionInfo>) => void;
+  onAddCriterion: () => void;
+  onRemoveCriterion: (id: CriterionId) => void;
+  onUpdateEventMeta: (partial: Partial<EventMetadata>) => void;
+  onUpdatePrizeConfig: (partial: Partial<PrizeConfig>) => void;
+  onResetAllDefaults: () => void;
   onBackToLedger: () => void;
 }
 
-export const RulesView: React.FC<RulesViewProps> = ({ onBackToLedger }) => {
+export const RulesView: React.FC<RulesViewProps> = ({
+  criteria,
+  eventMeta,
+  prizeConfig,
+  onUpdateCriterion,
+  onAddCriterion,
+  onRemoveCriterion,
+  onUpdateEventMeta,
+  onUpdatePrizeConfig,
+  onResetAllDefaults,
+  onBackToLedger,
+}) => {
+  const totalStandardPoints = criteria.reduce((sum, c) => sum + (c.maxPoints || 0), 0);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-display text-2xl font-bold text-[#1C1917]">
-            Tiêu chí chấm điểm (Thang 100đ) & Cơ cấu giải thưởng
+            Tiêu chí chấm điểm & Cơ cấu giải thưởng
           </h2>
           <p className="mt-1 text-sm text-[#57534E]">
-            Ban Giám khảo chấm điểm theo thang điểm 100; tiết mục có chủ đề ca ngợi thầy cô được cộng thêm 3 điểm (tối đa 103 điểm)
+            Chỉnh sửa linh hoạt tên tiêu chí, thang điểm chuẩn, điểm cộng và số lượng giải cho bất kỳ hội thi nào
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onBackToLedger}
-          className="self-start min-h-[42px] rounded-lg border border-[#D6D0C6] bg-white px-4 py-2 text-xs font-semibold text-[#1C1917] hover:bg-[#FAF7F2] cursor-pointer"
-        >
-          Quay lại Biểu chấm điểm
-        </button>
-      </div>
-
-      {/* Mobile Rubric Cards */}
-      <div className="space-y-3 md:hidden">
-        {CRITERIA.map((c) => (
-          <div key={c.id} className="rounded-xl border border-[#E6DFD5] bg-white p-4 space-y-2">
-            <div className="flex items-baseline justify-between gap-2 border-b border-[#EFEAE2] pb-2">
-              <div className="text-sm font-bold text-[#1C1917]">
-                <span className="font-mono text-[#6B655E] mr-1.5">{c.stt}.</span>
-                {c.name}
-              </div>
-              <span className="font-mono text-sm font-bold text-[#9F1239] shrink-0">
-                {c.maxPoints}đ
-              </span>
-            </div>
-            {c.subCriteria ? (
-              <ul className="space-y-1.5 text-xs text-[#292524]">
-                {c.subCriteria.map((sub, idx) => (
-                  <li key={idx} className="flex items-baseline justify-between gap-3">
-                    <span>• {sub.label}</span>
-                    <span className="font-mono font-semibold text-[#57534E] shrink-0">
-                      ({sub.maxPoints}đ)
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-[#44403C] leading-relaxed">{c.description}</p>
-            )}
-          </div>
-        ))}
-        <div className="rounded-xl border border-[#9F1239]/30 bg-[#FFF1F2]/50 p-4 flex items-center justify-between text-xs font-bold text-[#9F1239]">
-          <span>Tổng chuẩn 100đ · Chủ đề thầy cô (+3đ)</span>
-          <span className="font-mono text-sm">103đ</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onResetAllDefaults}
+            className="inline-flex min-h-[42px] items-center gap-1.5 rounded-lg border border-[#D6D0C6] bg-white px-3.5 py-2 text-xs font-medium text-[#1C1917] hover:bg-[#FAF7F2] cursor-pointer"
+          >
+            <RotateCcw className="h-3.5 w-3.5 text-[#57534E]" aria-hidden="true" />
+            <span>Khôi phục mặc định 20/11</span>
+          </button>
+          <button
+            type="button"
+            onClick={onBackToLedger}
+            className="min-h-[42px] rounded-lg bg-[#9F1239] px-4 py-2 text-xs font-semibold text-white hover:bg-[#881337] cursor-pointer"
+          >
+            Quay lại Biểu chấm điểm
+          </button>
         </div>
       </div>
 
-      {/* Desktop Rubric Table */}
-      <div className="hidden md:block overflow-x-auto rounded-xl border border-[#E6DFD5] bg-white">
-        <table className="w-full min-w-[760px] border-collapse text-left text-sm">
-          <thead>
-            <tr className="border-b border-[#E6DFD5] bg-[#FAF7F2] text-xs font-semibold text-[#57534E]">
-              <th className="w-16 px-4 py-3 text-center">STT</th>
-              <th className="w-48 px-4 py-3">Nhóm tiêu chí</th>
-              <th className="px-4 py-3">Nội dung tiêu chí đánh giá chi tiết</th>
-              <th className="w-32 px-4 py-3 text-right">Điểm chuẩn</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#EFEAE2]">
-            {CRITERIA.map((c) => (
-              <tr key={c.id} className="align-top hover:bg-[#FAF7F2]/60">
-                <td className="px-4 py-3 text-center font-mono text-xs font-bold text-[#6B655E]">
-                  {c.stt}
-                </td>
-                <td className="px-4 py-3 font-semibold text-[#1C1917]">{c.name}</td>
-                <td className="px-4 py-3 text-[#292524]">
-                  {c.subCriteria ? (
-                    <ul className="space-y-1.5">
-                      {c.subCriteria.map((sub, idx) => (
-                        <li
-                          key={idx}
-                          className="flex items-baseline justify-between gap-4 text-sm"
-                        >
-                          <span>• {sub.label}</span>
-                          <span className="font-mono text-xs font-semibold tabular-nums text-[#57534E] shrink-0">
-                            ({sub.maxPoints}đ)
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p>{c.description}</p>
+      {/* Editable Criteria List */}
+      <div className="rounded-xl border border-[#E6DFD5] bg-white overflow-hidden">
+        <div className="flex items-center justify-between border-b border-[#E6DFD5] bg-[#FAF7F2] px-5 py-3">
+          <h3 className="text-sm font-bold text-[#1C1917]">
+            Các tiêu chí chấm điểm (Tổng chuẩn hiện tại: {totalStandardPoints}đ)
+          </h3>
+          <button
+            type="button"
+            onClick={onAddCriterion}
+            className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-[#D6D0C6] bg-white px-3 py-1 text-xs font-semibold text-[#1C1917] hover:bg-[#FAF7F2] cursor-pointer"
+          >
+            <Plus className="h-3.5 w-3.5 text-[#9F1239]" aria-hidden="true" />
+            <span>Thêm tiêu chí</span>
+          </button>
+        </div>
+
+        <div className="divide-y divide-[#EFEAE2]">
+          {criteria.map((c, idx) => (
+            <div key={c.id} className="p-4 sm:px-5 space-y-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-12 sm:items-end">
+                <div className="sm:col-span-4">
+                  <label className="block text-[10px] font-medium text-[#6B655E] mb-1">
+                    Tên tiêu chí {idx + 1}
+                  </label>
+                  <input
+                    type="text"
+                    value={c.name}
+                    onChange={(e) => onUpdateCriterion(c.id, { name: e.target.value })}
+                    className="w-full min-h-[40px] rounded-lg border border-[#D6D0C6] bg-white px-3 text-sm font-semibold text-[#1C1917] focus:border-[#9F1239] focus:outline-none"
+                  />
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="block text-[10px] font-medium text-[#6B655E] mb-1">
+                    Tên ngắn (hiện trên cột bảng)
+                  </label>
+                  <input
+                    type="text"
+                    value={c.shortName}
+                    onChange={(e) => onUpdateCriterion(c.id, { shortName: e.target.value })}
+                    className="w-full min-h-[40px] rounded-lg border border-[#D6D0C6] bg-white px-3 text-sm text-[#1C1917] focus:border-[#9F1239] focus:outline-none"
+                  />
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="block text-[10px] font-medium text-[#6B655E] mb-1">
+                    Điểm chuẩn tối đa
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={c.maxPoints}
+                    onChange={(e) =>
+                      onUpdateCriterion(c.id, {
+                        maxPoints: Math.max(1, Number(e.target.value) || 0),
+                      })
+                    }
+                    className="w-full min-h-[40px] rounded-lg border border-[#D6D0C6] bg-[#FAF7F2] px-3 font-mono text-sm font-bold text-[#9F1239] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 flex justify-end">
+                  {criteria.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveCriterion(c.id)}
+                      className="inline-flex min-h-[40px] items-center gap-1 rounded-lg px-2.5 text-xs text-[#6B655E] hover:bg-[#FEF2F2] hover:text-[#DC2626] cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Xóa</span>
+                    </button>
                   )}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-sm font-bold tabular-nums text-[#1C1917]">
-                  {c.maxPoints}đ
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="border-t border-[#E6DFD5] bg-[#FAF7F2]">
-              <td colSpan={3} className="px-4 py-2.5 text-right text-sm font-bold text-[#1C1917]">
-                Tổng điểm chuẩn
-              </td>
-              <td className="px-4 py-2.5 text-right font-mono text-base font-bold tabular-nums text-[#1C1917]">
-                100đ
-              </td>
-            </tr>
-            <tr className="border-t border-[#EFEAE2] bg-[#FFF1F2]/50">
-              <td colSpan={3} className="px-4 py-2.5 text-right text-sm font-bold text-[#9F1239]">
-                Tiết mục có chủ đề ca ngợi thầy, cô (+3đ)
-              </td>
-              <td className="px-4 py-2.5 text-right font-mono text-base font-bold tabular-nums text-[#9F1239]">
-                103đ
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-medium text-[#6B655E] mb-1">
+                  Mô tả chi tiết nội dung chấm
+                </label>
+                <input
+                  type="text"
+                  value={c.description}
+                  onChange={(e) => onUpdateCriterion(c.id, { description: e.target.value })}
+                  className="w-full min-h-[38px] rounded-lg border border-[#EFEAE2] bg-[#FAF7F2]/60 px-3 text-xs text-[#44403C] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+                />
+                {c.subCriteria && c.subCriteria.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[#6B655E]">
+                    {c.subCriteria.map((sub, sIdx) => (
+                      <span key={sIdx}>
+                        • {sub.label} ({sub.maxPoints}đ)
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Prize structure + submission note */}
+      {/* Bonus & Prize Quota Config */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-[#E6DFD5] bg-white p-5">
+        <div className="rounded-xl border border-[#E6DFD5] bg-white p-5 space-y-4">
           <h3 className="text-sm font-bold text-[#1C1917] border-b border-[#EFEAE2] pb-3">
-            Cơ cấu 11 giải thưởng chính thức
+            Cấu hình điểm thưởng ưu tiên
           </h3>
-          <dl className="mt-3 divide-y divide-[#F4EFE6] text-sm">
-            <div className="flex items-center justify-between py-2.5">
-              <div>
-                <dt className="font-bold text-[#9F1239]">01 Giải Nhất</dt>
-                <dd className="text-xs text-[#6B655E]">Tiết mục xếp thứ 1 toàn hội thi</dd>
-              </div>
-              <span className="font-mono text-sm font-bold tabular-nums text-[#1C1917]">
-                Hạng 1
-              </span>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-[#57534E] mb-1">
+                Tên mục điểm cộng
+              </label>
+              <input
+                type="text"
+                value={eventMeta.bonusLabel}
+                onChange={(e) => onUpdateEventMeta({ bonusLabel: e.target.value })}
+                className="w-full min-h-[42px] rounded-lg border border-[#D6D0C6] bg-white px-3 text-sm text-[#1C1917] focus:border-[#9F1239] focus:outline-none"
+              />
             </div>
-            <div className="flex items-center justify-between py-2.5">
-              <div>
-                <dt className="font-semibold text-[#B45309]">02 Giải Nhì</dt>
-                <dd className="text-xs text-[#6B655E]">Các tiết mục xếp thứ 2 và thứ 3</dd>
-              </div>
-              <span className="font-mono text-sm font-semibold tabular-nums text-[#1C1917]">
-                Hạng 2 – 3
-              </span>
+            <div>
+              <label className="block text-xs font-medium text-[#57534E] mb-1">
+                Số điểm cộng
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={20}
+                value={eventMeta.bonusPoints}
+                onChange={(e) =>
+                  onUpdateEventMeta({
+                    bonusPoints: Math.max(0, Number(e.target.value) || 0),
+                  })
+                }
+                className="w-full min-h-[42px] rounded-lg border border-[#D6D0C6] bg-[#FAF7F2] px-3 font-mono text-sm font-bold text-[#9F1239] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+              />
             </div>
-            <div className="flex items-center justify-between py-2.5">
-              <div>
-                <dt className="font-semibold text-[#1E3A8A]">02 Giải Ba</dt>
-                <dd className="text-xs text-[#6B655E]">Các tiết mục xếp thứ 4 và thứ 5</dd>
-              </div>
-              <span className="font-mono text-sm font-semibold tabular-nums text-[#1C1917]">
-                Hạng 4 – 5
-              </span>
-            </div>
-            <div className="flex items-center justify-between py-2.5">
-              <div>
-                <dt className="font-medium text-[#374151]">06 Giải Khuyến khích</dt>
-                <dd className="text-xs text-[#6B655E]">Các tiết mục xếp thứ 6 đến thứ 11</dd>
-              </div>
-              <span className="font-mono text-sm font-medium tabular-nums text-[#1C1917]">
-                Hạng 6 – 11
-              </span>
-            </div>
-          </dl>
+          </div>
+          <p className="text-xs text-[#6B655E]">
+            Điểm tối đa toàn hội thi hiện tại:{' '}
+            <strong className="font-mono text-[#1C1917]">
+              {totalStandardPoints + eventMeta.bonusPoints}đ
+            </strong>{' '}
+            (Đặt 0 điểm nếu không áp dụng điểm cộng).
+          </p>
         </div>
 
-        <div className="rounded-xl border border-[#E6DFD5] bg-white p-5 space-y-3 text-sm text-[#44403C]">
+        <div className="rounded-xl border border-[#E6DFD5] bg-white p-5 space-y-4">
           <h3 className="text-sm font-bold text-[#1C1917] border-b border-[#EFEAE2] pb-3">
-            Quy định phân công chấm & Tổng hợp điểm
+            Cấu hình số lượng giải thưởng
           </h3>
-          <p>
-            <strong className="text-[#1C1917]">1. Phân công tiêu chí:</strong> 05 thành viên Ban Giám khảo tích chọn tiêu chí phụ trách trong mục <em>Giám khảo tích chọn tiêu chí phụ trách</em>. Mỗi cột GK chỉ nhận điểm trong giới hạn điểm chuẩn của các tiêu chí đã chọn.
-          </p>
-          <p>
-            <strong className="text-[#1C1917]">2. Công thức Tổng điểm:</strong> Tổng điểm = Tổng điểm các Giám khảo + <strong className="text-[#9F1239]">3 điểm</strong> (nếu tiết mục thuộc chủ đề ca ngợi thầy cô).
-          </p>
-          <p>
-            <strong className="text-[#1C1917]">3. Đồng điểm:</strong> Khi có 2 tiết mục bằng tổng điểm, hệ thống ưu tiên xét điểm của Trưởng ban Giám khảo (GK1 Lê Thị Hoa) nếu bật tùy chọn phân định đồng điểm.
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div>
+              <label className="block text-xs font-semibold text-[#9F1239] mb-1">
+                Giải Nhất
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={20}
+                value={prizeConfig.nhat}
+                onChange={(e) =>
+                  onUpdatePrizeConfig({ nhat: Math.max(0, Number(e.target.value) || 0) })
+                }
+                className="w-full min-h-[42px] rounded-lg border border-[#D6D0C6] bg-[#FAF7F2] px-3 text-center font-mono text-sm font-bold text-[#1C1917] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#B45309] mb-1">
+                Giải Nhì
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={20}
+                value={prizeConfig.nhi}
+                onChange={(e) =>
+                  onUpdatePrizeConfig({ nhi: Math.max(0, Number(e.target.value) || 0) })
+                }
+                className="w-full min-h-[42px] rounded-lg border border-[#D6D0C6] bg-[#FAF7F2] px-3 text-center font-mono text-sm font-bold text-[#1C1917] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#1E3A8A] mb-1">
+                Giải Ba
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={20}
+                value={prizeConfig.ba}
+                onChange={(e) =>
+                  onUpdatePrizeConfig({ ba: Math.max(0, Number(e.target.value) || 0) })
+                }
+                className="w-full min-h-[42px] rounded-lg border border-[#D6D0C6] bg-[#FAF7F2] px-3 text-center font-mono text-sm font-bold text-[#1C1917] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#374151] mb-1">
+                Khuyến khích
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={30}
+                value={prizeConfig.khuyen_khich}
+                onChange={(e) =>
+                  onUpdatePrizeConfig({
+                    khuyen_khich: Math.max(0, Number(e.target.value) || 0),
+                  })
+                }
+                className="w-full min-h-[42px] rounded-lg border border-[#D6D0C6] bg-[#FAF7F2] px-3 text-center font-mono text-sm font-bold text-[#1C1917] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-[#6B655E]">
+            Tổng số giải sẽ trao:{' '}
+            <strong className="font-mono text-[#1C1917]">
+              {prizeConfig.nhat + prizeConfig.nhi + prizeConfig.ba + prizeConfig.khuyen_khich}{' '}
+              giải
+            </strong>
+            .
           </p>
         </div>
       </div>

@@ -1,12 +1,6 @@
-export type JudgeId = 'gk1' | 'gk2' | 'gk3' | 'gk4' | 'gk5';
+export type JudgeId = string;
 
-export type CriterionId =
-  | 'chu_de'
-  | 'trang_phuc'
-  | 'dan_dung'
-  | 'hat'
-  | 'file_nhac'
-  | 'ky_luat';
+export type CriterionId = string;
 
 export interface SubCriterion {
   label: string;
@@ -30,6 +24,24 @@ export interface JudgeInfo {
   fullName: string;
   role: string;
   isChair?: boolean;
+}
+
+export interface EventMetadata {
+  organizationHeader: string;
+  schoolName: string;
+  eventTitle: string;
+  eventDateRange: string;
+  eventLocationDate: string;
+  secretaryName: string;
+  bonusLabel: string;
+  bonusPoints: number;
+}
+
+export interface PrizeConfig {
+  nhat: number;
+  nhi: number;
+  ba: number;
+  khuyen_khich: number;
 }
 
 export type JudgeCriteriaMap = Record<JudgeId, CriterionId[]>;

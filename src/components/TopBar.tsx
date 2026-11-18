@@ -3,6 +3,7 @@ import { Award, BookOpenCheck, ClipboardList, Printer, Users } from 'lucide-reac
 import { ActiveTab } from '../types/scoring';
 
 interface TopBarProps {
+  brandTitle: string;
   activeTab: ActiveTab;
   onSelectTab: (tab: ActiveTab) => void;
   onPrint: () => void;
@@ -20,18 +21,24 @@ const NAV_ITEMS: {
   { id: 'rules', label: 'Tiêu chí & Giải', mobileLabel: 'Tiêu chí', icon: BookOpenCheck },
 ];
 
-export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab, onPrint }) => {
+export const TopBar: React.FC<TopBarProps> = ({
+  brandTitle,
+  activeTab,
+  onSelectTab,
+  onPrint,
+}) => {
   return (
     <>
       <header className="no-print sticky top-0 z-30 border-b border-[#E6DFD5] bg-[#FAF7F2]/95 backdrop-blur-md">
         <div className="mx-auto flex h-13 md:h-15 max-w-[1400px] items-center justify-between gap-8 px-4 sm:px-6 lg:px-8">
-          {/* Zone 1: Brand wordmark (single text element) */}
+          {/* Zone 1: Brand wordmark (single text element, dynamic) */}
           <button
             type="button"
             onClick={() => onSelectTab('ledger')}
-            className="font-display text-base sm:text-lg font-bold tracking-tight text-[#1C1917] whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9F1239] rounded-sm cursor-pointer"
+            title={brandTitle}
+            className="font-display text-base sm:text-lg font-bold tracking-tight text-[#1C1917] whitespace-nowrap shrink-0 max-w-[200px] sm:max-w-[260px] truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9F1239] rounded-sm cursor-pointer"
           >
-            THCS Lê Hữu Lập
+            {brandTitle}
           </button>
 
           {/* Zone 2: 4 single-line navigation links (Desktop) */}
@@ -78,7 +85,7 @@ export const TopBar: React.FC<TopBarProps> = ({ activeTab, onSelectTab, onPrint 
         </div>
       </header>
 
-      {/* Mobile Fixed Bottom Tab Bar (Thumb-zone ergonomic navigation) */}
+      {/* Mobile Fixed Bottom Tab Bar */}
       <nav
         aria-label="Điều hướng di động"
         className="no-print md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[#E6DFD5] bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]"

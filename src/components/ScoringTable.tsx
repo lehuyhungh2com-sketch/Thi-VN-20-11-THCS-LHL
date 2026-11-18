@@ -5,24 +5,31 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Plus,
   RotateCcw,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
-import { JUDGES } from '../data/initialData';
 import {
+  CriterionInfo,
   EvaluatedPerformance,
+  EventMetadata,
   JudgeId,
+  JudgeInfo,
   PrizeTier,
   ScoringConfig,
 } from '../types/scoring';
 import {
   formatTotalScore,
-  getCriterionById,
+  getJudgeColumnCriterionTitle,
   getJudgeMaxScore,
 } from '../utils/scoring';
 
 interface ScoringTableProps {
   evaluated: EvaluatedPerformance[];
+  judges: JudgeInfo[];
+  criteria: CriterionInfo[];
+  eventMeta: EventMetadata;
   selectedId: string;
   onSelectId: (id: string) => void;
   draftScores: Record<string, string>;
@@ -31,6 +38,8 @@ interface ScoringTableProps {
   onUpdateClassName: (perfId: string, value: string) => void;
   onUpdatePerformanceName: (perfId: string, value: string) => void;
   onToggleTeacherTheme: (perfId: string) => void;
+  onAddPerformance: () => void;
+  onRemovePerformance: (perfId: string) => void;
   config: ScoringConfig;
   onChangeConfig: (next: Partial<ScoringConfig>) => void;
   onLoadSampleScores: () => void;
@@ -48,6 +57,9 @@ const PRIZE_TEXT_STYLE: Record<PrizeTier, string> = {
 
 export const ScoringTable: React.FC<ScoringTableProps> = ({
   evaluated,
+  judges,
+  criteria,
+  eventMeta,
   selectedId,
   onSelectId,
   draftScores,
@@ -56,6 +68,8 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
   onUpdateClassName,
   onUpdatePerformanceName,
   onToggleTeacherTheme,
+  onAddPerformance,
+  onRemovePerformance,
   config,
   onChangeConfig,
   onLoadSampleScores,
@@ -79,6 +93,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
     : evaluated;
 
   const hasAnyScore = evaluated.some((r) => r.scoredCount > 0);
+  const chairJudge = judges.find((j) => j.isChair) ?? judges[0];
 
   const handleCellKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
@@ -87,7 +102,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
   ) => {
     const focusCell = (rIdx: number, jIdx: number) => {
       const targetRow = displayedRows[rIdx];
-      const targetJudge = JUDGES[jIdx];
+      const targetJudge = judges[jIdx];
       if (!targetRow || !targetJudge) return;
       const key = `${targetRow.id}-${targetJudge.id}`;
       const el = cellRefs.current[key];
@@ -110,7 +125,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
       }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (judgeIndex < JUDGES.length - 1) {
+      if (judgeIndex < judges.length - 1) {
         focusCell(rowIndex, judgeIndex + 1);
       } else if (rowIndex < displayedRows.length - 1) {
         focusCell(rowIndex + 1, 0);
@@ -154,18 +169,29 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
             </button>
           </div>
 
-          <label className="inline-flex min-h-[38px] items-center gap-2 text-xs text-[#57534E] cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={config.tieBreakByChair}
-              onChange={(e) => onChangeConfig({ tieBreakByChair: e.target.checked })}
-              className="h-4 w-4 rounded border-[#D6D0C6] accent-[#9F1239]"
-            />
-            <span>Ưu tiên điểm Trưởng ban (GK1) khi đồng điểm</span>
-          </label>
+          {chairJudge && (
+            <label className="inline-flex min-h-[38px] items-center gap-2 text-xs text-[#57534E] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={config.tieBreakByChair}
+                onChange={(e) => onChangeConfig({ tieBreakByChair: e.target.checked })}
+                className="h-4 w-4 rounded border-[#D6D0C6] accent-[#9F1239]"
+              />
+              <span>Ưu tiên điểm Trưởng ban ({chairJudge.shortLabel}) khi đồng điểm</span>
+            </label>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onAddPerformance}
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[#D6D0C6] bg-white px-3 py-1.5 text-xs font-medium text-[#1C1917] transition-colors hover:bg-[#FAF7F2] whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            <Plus className="h-3.5 w-3.5 text-[#9F1239]" aria-hidden="true" />
+            <span>Thêm tiết mục</span>
+          </button>
+
           <button
             type="button"
             onClick={onLoadSampleScores}
@@ -220,7 +246,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
         </div>
       </div>
 
-      {/* MOBILE CARD LEDGER (< md): Ergonomic touch scoring without horizontal scroll */}
+      {/* MOBILE CARD LEDGER (< md) */}
       <div className="space-y-3 md:hidden">
         {displayedRows.map((row) => {
           const isExpanded = row.id === selectedId;
@@ -228,12 +254,9 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
             <div
               key={row.id}
               className={`rounded-xl border bg-white transition-colors ${
-                isExpanded
-                  ? 'border-[#9F1239]/50 shadow-xs'
-                  : 'border-[#E6DFD5]'
+                isExpanded ? 'border-[#9F1239]/50 shadow-xs' : 'border-[#E6DFD5]'
               }`}
             >
-              {/* Card Header — tap to expand/collapse */}
               <button
                 type="button"
                 onClick={() => onSelectId(isExpanded ? '' : row.id)}
@@ -246,17 +269,17 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                     </span>
                     <span aria-hidden="true">·</span>
                     <span className="font-semibold text-[#1C1917]">Lớp {row.className}</span>
-                    {row.isTeacherTheme && (
+                    {row.isTeacherTheme && eventMeta.bonusPoints > 0 && (
                       <>
                         <span aria-hidden="true">·</span>
                         <span className="font-mono text-[11px] font-medium text-[#9F1239]">
-                          +3đ CĐ
+                          +{eventMeta.bonusPoints}đ CĐ
                         </span>
                       </>
                     )}
                   </div>
                   <p className="mt-0.5 text-sm font-medium text-[#1C1917] line-clamp-1">
-                    {row.performanceName}
+                    {row.performanceName || '(Chưa nhập tên tiết mục)'}
                   </p>
                 </div>
 
@@ -277,10 +300,8 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                 </div>
               </button>
 
-              {/* Expanded Touch Scoring Body */}
               {isExpanded && (
                 <div className="border-t border-[#EFEAE2] px-4 py-3.5 space-y-3.5 bg-[#FAF7F2]/40">
-                  {/* Editable Class & Performance Title */}
                   <div className="grid grid-cols-4 gap-2">
                     <div className="col-span-1">
                       <label className="block text-[11px] font-medium text-[#6B655E] mb-1">
@@ -301,53 +322,58 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                         type="text"
                         value={row.performanceName}
                         onChange={(e) => onUpdatePerformanceName(row.id, e.target.value)}
+                        placeholder="Nhập tên tiết mục"
                         className="w-full min-h-[44px] rounded-lg border border-[#D6D0C6] bg-white px-2.5 text-sm text-[#1C1917] focus:border-[#9F1239] focus:outline-none"
                       />
                     </div>
                   </div>
 
-                  {/* Teacher theme +3đ toggle */}
-                  <label className="flex min-h-[44px] items-center justify-between rounded-lg border border-[#E6DFD5] bg-white px-3 py-2 text-xs text-[#44403C] cursor-pointer">
-                    <span>
-                      Chủ đề ca ngợi thầy cô{' '}
-                      <strong className="font-mono text-[#9F1239]">(+3đ)</strong>
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={row.isTeacherTheme}
-                      onChange={() => onToggleTeacherTheme(row.id)}
-                      className="h-4.5 w-4.5 rounded border-[#D6D0C6] accent-[#9F1239]"
-                    />
-                  </label>
+                  {eventMeta.bonusPoints > 0 && (
+                    <label className="flex min-h-[44px] items-center justify-between rounded-lg border border-[#E6DFD5] bg-white px-3 py-2 text-xs text-[#44403C] cursor-pointer">
+                      <span>
+                        {eventMeta.bonusLabel}{' '}
+                        <strong className="font-mono text-[#9F1239]">
+                          (+{eventMeta.bonusPoints}đ)
+                        </strong>
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={row.isTeacherTheme}
+                        onChange={() => onToggleTeacherTheme(row.id)}
+                        className="h-4.5 w-4.5 rounded border-[#D6D0C6] accent-[#9F1239]"
+                      />
+                    </label>
+                  )}
 
-                  {/* 5 Judge 48px Touch Inputs */}
                   <div className="grid grid-cols-2 gap-2.5">
-                    {JUDGES.map((judge) => {
+                    {judges.map((judge, jIdx) => {
                       const key = `${row.id}-${judge.id}`;
                       const scoreVal = row.scores[judge.id];
                       const displayValue =
                         key in draftScores
                           ? draftScores[key]
-                          : scoreVal !== null
+                          : scoreVal !== null && scoreVal !== undefined
                             ? String(scoreVal)
                             : '';
-                      const assignedIds = config.judgeCriteria[judge.id] ?? [];
-                      const critNames = assignedIds
-                        .map((cId) => getCriterionById(cId)?.shortName)
-                        .filter(Boolean)
-                        .join(' + ');
-                      const maxScore = getJudgeMaxScore(judge.id, config.judgeCriteria);
+                      const critTitle = getJudgeColumnCriterionTitle(
+                        judge.id,
+                        config.judgeCriteria,
+                        criteria,
+                        jIdx
+                      );
+                      const maxScore = getJudgeMaxScore(
+                        judge.id,
+                        config.judgeCriteria,
+                        criteria
+                      );
 
                       return (
                         <div key={judge.id} className="flex flex-col">
-                          <label className="text-[11px] font-medium text-[#44403C] truncate">
-                            <span className="font-mono font-bold text-[#1C1917]">
-                              {judge.shortLabel}
-                            </span>{' '}
-                            {judge.fullName}
+                          <label className="text-[11px] font-semibold text-[#1C1917] truncate">
+                            {critTitle}
                           </label>
                           <div className="text-[10px] text-[#6B655E] truncate mb-1">
-                            {critNames || 'Chưa chọn TC'} ·{' '}
+                            {judge.fullName} ·{' '}
                             <span className="font-mono font-semibold text-[#9F1239]">
                               /{maxScore}đ
                             </span>
@@ -368,6 +394,19 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                       );
                     })}
                   </div>
+
+                  {evaluated.length > 1 && (
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={() => onRemovePerformance(row.id)}
+                        className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-[#DC2626] hover:bg-[#FEF2F2] cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Xóa tiết mục này</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -375,9 +414,9 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
         })}
       </div>
 
-      {/* DESKTOP 11-COLUMN SPREADSHEET LEDGER (>= md) */}
+      {/* DESKTOP SPREADSHEET LEDGER (>= md) */}
       <div className="hidden md:block overflow-x-auto rounded-xl border border-[#E6DFD5] bg-white">
-        <table className="w-full min-w-[1140px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[1100px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-[#E6DFD5] bg-[#FAF7F2] text-xs text-[#57534E]">
               <th scope="col" className="w-12 px-3 py-3 text-center font-semibold">
@@ -386,45 +425,36 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
               <th scope="col" className="w-20 px-2.5 py-3 font-semibold">
                 Tên lớp
               </th>
-              <th scope="col" className="min-w-[270px] px-3 py-3 font-semibold">
-                Tên Tiết mục & Cộng CĐ Thầy cô (+3đ)
+              <th scope="col" className="min-w-[260px] px-3 py-3 font-semibold">
+                Tên Tiết mục
               </th>
-              {JUDGES.map((judge) => {
-                const assignedIds = config.judgeCriteria[judge.id] ?? [];
-                const critNames = assignedIds
-                  .map((cId) => getCriterionById(cId)?.shortName)
-                  .filter(Boolean)
-                  .join(' + ');
-                const maxScore = getJudgeMaxScore(judge.id, config.judgeCriteria);
+              {judges.map((judge, idx) => {
+                const critTitle = getJudgeColumnCriterionTitle(
+                  judge.id,
+                  config.judgeCriteria,
+                  criteria,
+                  idx
+                );
+                const maxScore = getJudgeMaxScore(
+                  judge.id,
+                  config.judgeCriteria,
+                  criteria
+                );
 
                 return (
                   <th
                     key={judge.id}
                     scope="col"
-                    className="w-28 border-l border-[#EFEAE2] px-2 py-2.5 text-center align-top"
+                    className="w-32 border-l border-[#EFEAE2] px-2 py-2.5 text-center align-top"
                   >
-                    <div className="font-mono text-xs font-bold text-[#1C1917]">
-                      {judge.shortLabel}
-                      {judge.isChair && (
-                        <span className="ml-1 text-[10px] font-semibold text-[#9F1239]">
-                          (TB)
-                        </span>
-                      )}
+                    <div className="text-xs font-bold text-[#1C1917] leading-tight">
+                      {critTitle}
                     </div>
-                    <div className="mt-0.5 text-[11px] font-medium text-[#44403C] leading-tight">
-                      {judge.fullName}
+                    <div className="font-mono text-[11px] font-semibold text-[#9F1239] mt-0.5">
+                      Tối đa {maxScore}đ
                     </div>
-                    <div className="mt-1 text-[10px] leading-tight text-[#6B655E]">
-                      {critNames ? (
-                        <>
-                          <div>{critNames}</div>
-                          <div className="font-mono font-semibold text-[#9F1239] mt-0.5">
-                            Tối đa {maxScore}đ
-                          </div>
-                        </>
-                      ) : (
-                        <span className="text-[#A8A29E]">Chưa chọn TC</span>
-                      )}
+                    <div className="mt-1 text-[10px] font-normal text-[#6B655E] truncate">
+                      {judge.shortLabel}: {judge.fullName}
                     </div>
                   </th>
                 );
@@ -433,8 +463,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                 scope="col"
                 className="w-28 border-l border-[#E6DFD5] bg-[#F4EFE6] px-3 py-3 text-right font-semibold text-[#1C1917]"
               >
-                <div>Tổng điểm</div>
-                <div className="text-[10px] font-normal text-[#6B655E]">(100 + 3đ)</div>
+                Tổng điểm
               </th>
               <th
                 scope="col"
@@ -448,6 +477,14 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
               >
                 Xếp giải
               </th>
+              {evaluated.length > 1 && (
+                <th
+                  scope="col"
+                  className="w-10 border-l border-[#EFEAE2] bg-[#F4EFE6] px-1 py-3 text-center"
+                >
+                  <span className="sr-only">Xóa</span>
+                </th>
+              )}
             </tr>
           </thead>
 
@@ -491,32 +528,38 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                       onChange={(e) => onUpdatePerformanceName(row.id, e.target.value)}
                       className="w-full rounded border border-transparent bg-transparent px-2 py-1 text-sm text-[#1C1917] placeholder:text-[#A8A29E] hover:border-[#E6DFD5] focus:border-[#9F1239] focus:bg-white focus:outline-none"
                     />
-                    <label
-                      onClick={(e) => e.stopPropagation()}
-                      className="mt-0.5 inline-flex items-center gap-1.5 px-2 text-[11px] text-[#6B655E] cursor-pointer select-none hover:text-[#1C1917]"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={row.isTeacherTheme}
-                        onChange={() => onToggleTeacherTheme(row.id)}
-                        className="h-3 w-3 rounded border-[#D6D0C6] accent-[#9F1239]"
-                      />
-                      <span className={row.isTeacherTheme ? 'text-[#9F1239] font-medium' : ''}>
-                        CĐ ca ngợi thầy cô (+3đ)
-                      </span>
-                    </label>
+                    {eventMeta.bonusPoints > 0 && (
+                      <label
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-0.5 inline-flex items-center gap-1.5 px-2 text-[11px] text-[#6B655E] cursor-pointer select-none hover:text-[#1C1917]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={row.isTeacherTheme}
+                          onChange={() => onToggleTeacherTheme(row.id)}
+                          className="h-3 w-3 rounded border-[#D6D0C6] accent-[#9F1239]"
+                        />
+                        <span className={row.isTeacherTheme ? 'text-[#9F1239] font-medium' : ''}>
+                          {eventMeta.bonusLabel} (+{eventMeta.bonusPoints}đ)
+                        </span>
+                      </label>
+                    )}
                   </td>
 
-                  {JUDGES.map((judge, judgeIdx) => {
+                  {judges.map((judge, judgeIdx) => {
                     const key = `${row.id}-${judge.id}`;
                     const scoreVal = row.scores[judge.id];
                     const displayValue =
                       key in draftScores
                         ? draftScores[key]
-                        : scoreVal !== null
+                        : scoreVal !== null && scoreVal !== undefined
                           ? String(scoreVal)
                           : '';
-                    const maxScore = getJudgeMaxScore(judge.id, config.judgeCriteria);
+                    const maxScore = getJudgeMaxScore(
+                      judge.id,
+                      config.judgeCriteria,
+                      criteria
+                    );
 
                     return (
                       <td
@@ -530,7 +573,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                           type="text"
                           inputMode="decimal"
                           disabled={maxScore === 0}
-                          aria-label={`Điểm ${judge.shortLabel} (${judge.fullName}) cho lớp ${row.className}, tối đa ${maxScore} điểm`}
+                          aria-label={`Điểm ${getJudgeColumnCriterionTitle(judge.id, config.judgeCriteria, criteria, judgeIdx)} cho lớp ${row.className}`}
                           placeholder={maxScore > 0 ? `/${maxScore}` : '—'}
                           value={displayValue}
                           onFocus={() => onSelectId(row.id)}
@@ -570,7 +613,7 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                         {row.rank}
                         {row.resolvedByChair && (
                           <sup
-                            title="Đồng tổng điểm, phân định theo điểm Trưởng ban (GK1)"
+                            title="Đồng tổng điểm, phân định theo điểm Trưởng ban"
                             className="ml-0.5 text-[10px] text-[#B45309]"
                           >
                             *
@@ -589,6 +632,23 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
                       <span className="text-xs text-[#A8A29E]">Chưa xếp</span>
                     )}
                   </td>
+
+                  {evaluated.length > 1 && (
+                    <td
+                      onClick={(e) => e.stopPropagation()}
+                      className="border-l border-[#EFEAE2] bg-[#FAF7F2]/60 px-1 py-2 text-center"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onRemovePerformance(row.id)}
+                        title={`Xóa tiết mục lớp ${row.className}`}
+                        aria-label={`Xóa tiết mục lớp ${row.className}`}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded text-[#A8A29E] hover:bg-[#FEF2F2] hover:text-[#DC2626] cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -599,11 +659,11 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
       {/* Quiet legend */}
       <div className="no-print flex flex-wrap items-center justify-between gap-2 text-xs text-[#6B655E]">
         <p>
-          Gợi ý: Tích chọn <strong className="font-medium text-[#1C1917]">CĐ ca ngợi thầy cô (+3đ)</strong> để cộng thêm 3 điểm thưởng (tối đa 103đ). Dữ liệu tự động lưu trên trình duyệt.
+          Gợi ý: Bạn có thể sửa trực tiếp tên lớp, tên tiết mục, thêm/xóa tiết mục hoặc xuất Excel / In biên bản gửi các lớp (chỉ hiển thị cột Tiêu chí chấm, không hiển thị tên Giám khảo).
         </p>
-        {evaluated.some((r) => r.resolvedByChair) && (
+        {evaluated.some((r) => r.resolvedByChair) && chairJudge && (
           <p className="text-[#B45309]">
-            * Ký hiệu sao: Các lớp đồng tổng điểm được phân định theo điểm Trưởng ban (GK1 Lê Thị Hoa).
+            * Ký hiệu sao: Các lớp đồng tổng điểm được phân định theo điểm Trưởng ban ({chairJudge.shortLabel}).
           </p>
         )}
       </div>

@@ -1,15 +1,24 @@
 import React, { useRef } from 'react';
 import { ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react';
-import { JUDGES } from '../data/initialData';
-import { EvaluatedPerformance, JudgeId, ScoringConfig } from '../types/scoring';
+import {
+  CriterionInfo,
+  EvaluatedPerformance,
+  EventMetadata,
+  JudgeId,
+  JudgeInfo,
+  ScoringConfig,
+} from '../types/scoring';
 import {
   formatTotalScore,
-  getCriterionById,
+  getJudgeColumnCriterionTitle,
   getJudgeMaxScore,
 } from '../utils/scoring';
 
 interface QuickEntryPanelProps {
   performances: EvaluatedPerformance[];
+  judges: JudgeInfo[];
+  criteria: CriterionInfo[];
+  eventMeta: EventMetadata;
   selectedId: string;
   onSelectId: (id: string) => void;
   draftScores: Record<string, string>;
@@ -23,6 +32,9 @@ interface QuickEntryPanelProps {
 
 export const QuickEntryPanel: React.FC<QuickEntryPanelProps> = ({
   performances,
+  judges,
+  criteria,
+  eventMeta,
   selectedId,
   onSelectId,
   draftScores,
@@ -33,13 +45,7 @@ export const QuickEntryPanel: React.FC<QuickEntryPanelProps> = ({
   isOpen,
   onToggleOpen,
 }) => {
-  const inputRefs = useRef<Record<JudgeId, HTMLInputElement | null>>({
-    gk1: null,
-    gk2: null,
-    gk3: null,
-    gk4: null,
-    gk5: null,
-  });
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const currentIndex = Math.max(
     0,
@@ -57,16 +63,19 @@ export const QuickEntryPanel: React.FC<QuickEntryPanelProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, judgeIdx: number) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (judgeIdx < JUDGES.length - 1) {
-        const nextJudge = JUDGES[judgeIdx + 1].id;
+      if (judgeIdx < judges.length - 1) {
+        const nextJudge = judges[judgeIdx + 1].id;
         inputRefs.current[nextJudge]?.focus();
         inputRefs.current[nextJudge]?.select();
       } else {
         const nextIdx = (currentIndex + 1) % performances.length;
         onSelectId(performances[nextIdx].id);
         setTimeout(() => {
-          inputRefs.current.gk1?.focus();
-          inputRefs.current.gk1?.select();
+          const firstJudgeId = judges[0]?.id;
+          if (firstJudgeId) {
+            inputRefs.current[firstJudgeId]?.focus();
+            inputRefs.current[firstJudgeId]?.select();
+          }
         }, 20);
       }
     }
@@ -86,7 +95,7 @@ export const QuickEntryPanel: React.FC<QuickEntryPanelProps> = ({
               : '▸ Mở khung nhập nhanh theo tiết mục'}
           </button>
           <span className="hidden lg:inline text-xs text-[#6B655E]">
-            · Nhấn Enter để chuyển nhanh từ GK1 → GK5
+            · Nhấn Enter để chuyển nhanh giữa các cột tiêu chí
           </span>
         </div>
 
@@ -100,7 +109,7 @@ export const QuickEntryPanel: React.FC<QuickEntryPanelProps> = ({
           >
             {performances.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.stt}. Lớp {p.className} — {p.performanceName}
+                {p.stt}. Lớp {p.className} — {p.performanceName || '(Chưa nhập tên)'}
               </option>
             ))}
           </select>
@@ -131,7 +140,6 @@ export const QuickEntryPanel: React.FC<QuickEntryPanelProps> = ({
       {isOpen && (
         <div className="p-4 sm:p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            {/* Selected performance header + teacher-theme +3 toggle */}
             <div className="min-w-0 lg:w-72 shrink-0">
               <div className="flex items-center gap-2 text-xs text-[#6B655E]">
                 <span className="font-mono font-semibold text-[#9F1239]">
@@ -153,63 +161,60 @@ export const QuickEntryPanel: React.FC<QuickEntryPanelProps> = ({
                 className="mt-1 text-base sm:text-sm font-semibold text-[#1C1917] leading-snug"
                 title={current.performanceName}
               >
-                {current.performanceName}
+                {current.performanceName || '(Chưa nhập tên tiết mục)'}
               </p>
 
-              <label className="mt-2.5 inline-flex min-h-[40px] items-center gap-2.5 rounded-lg border border-[#EFEAE2] bg-[#FAF7F2] px-3 py-1.5 text-xs text-[#44403C] cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={current.isTeacherTheme}
-                  onChange={() => onToggleTeacherTheme(current.id)}
-                  className="h-4 w-4 rounded border-[#D6D0C6] accent-[#9F1239]"
-                />
-                <span>
-                  Chủ đề ca ngợi thầy cô{' '}
-                  <strong className="font-mono text-[#9F1239]">(+3đ)</strong>
-                </span>
-              </label>
+              {eventMeta.bonusPoints > 0 && (
+                <label className="mt-2.5 inline-flex min-h-[40px] items-center gap-2.5 rounded-lg border border-[#EFEAE2] bg-[#FAF7F2] px-3 py-1.5 text-xs text-[#44403C] cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={current.isTeacherTheme}
+                    onChange={() => onToggleTeacherTheme(current.id)}
+                    className="h-4 w-4 rounded border-[#D6D0C6] accent-[#9F1239]"
+                  />
+                  <span>
+                    {eventMeta.bonusLabel}{' '}
+                    <strong className="font-mono text-[#9F1239]">
+                      (+{eventMeta.bonusPoints}đ)
+                    </strong>
+                  </span>
+                </label>
+              )}
             </div>
 
-            {/* 5 judge score inputs with 48px mobile height and 16px mobile font */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 flex-1">
-              {JUDGES.map((judge, idx) => {
+              {judges.map((judge, idx) => {
                 const draftKey = `${current.id}-${judge.id}`;
                 const scoreVal = current.scores[judge.id];
                 const displayValue =
                   draftKey in draftScores
                     ? draftScores[draftKey]
-                    : scoreVal !== null
+                    : scoreVal !== null && scoreVal !== undefined
                       ? String(scoreVal)
                       : '';
 
-                const assignedIds = config.judgeCriteria[judge.id] ?? [];
-                const assignedNames = assignedIds
-                  .map((cId) => getCriterionById(cId)?.shortName)
-                  .filter(Boolean)
-                  .join(' + ');
-                const maxScore = getJudgeMaxScore(judge.id, config.judgeCriteria);
+                const critTitle = getJudgeColumnCriterionTitle(
+                  judge.id,
+                  config.judgeCriteria,
+                  criteria,
+                  idx
+                );
+                const maxScore = getJudgeMaxScore(judge.id, config.judgeCriteria, criteria);
 
                 return (
                   <div key={judge.id} className="flex flex-col">
                     <label
                       htmlFor={`quick-${judge.id}`}
-                      className="text-xs font-medium text-[#57534E] truncate"
-                      title={`${judge.shortLabel}: ${judge.fullName} — Phụ trách: ${assignedNames || 'Chưa chọn'} (Tối đa ${maxScore}đ)`}
+                      className="text-xs font-semibold text-[#1C1917] truncate"
+                      title={`${critTitle} — ${judge.shortLabel}: ${judge.fullName}`}
                     >
-                      <span className="font-semibold text-[#1C1917]">{judge.shortLabel}</span>{' '}
-                      {judge.fullName}
+                      {critTitle}
                     </label>
                     <div className="text-[11px] text-[#6B655E] truncate">
-                      {assignedNames ? (
-                        <>
-                          {assignedNames}{' '}
-                          <span className="font-mono font-semibold text-[#9F1239]">
-                            (/{maxScore}đ)
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-[#A8A29E]">Chưa chọn TC</span>
-                      )}
+                      {judge.fullName}{' '}
+                      <span className="font-mono font-semibold text-[#9F1239]">
+                        (/{maxScore}đ)
+                      </span>
                     </div>
                     <input
                       id={`quick-${judge.id}`}
@@ -231,7 +236,6 @@ export const QuickEntryPanel: React.FC<QuickEntryPanelProps> = ({
               })}
             </div>
 
-            {/* Live calculated total, rank, prize + mobile Next button */}
             <div className="flex flex-wrap items-center justify-between gap-4 border-t border-[#EFEAE2] pt-3 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5 shrink-0">
               <div className="flex items-center gap-5">
                 <div>
@@ -241,7 +245,7 @@ export const QuickEntryPanel: React.FC<QuickEntryPanelProps> = ({
                   </div>
                   {current.teacherBonus > 0 && (
                     <div className="font-mono text-[10px] text-[#9F1239]">
-                      ({formatTotalScore(current.judgeScoreSum)} + 3đ)
+                      ({formatTotalScore(current.judgeScoreSum)} + {current.teacherBonus}đ)
                     </div>
                   )}
                 </div>

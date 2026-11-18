@@ -1,27 +1,38 @@
 import React from 'react';
 import { RotateCcw, Check } from 'lucide-react';
-import { CRITERIA, JUDGES } from '../data/initialData';
-import { CriterionId, JudgeCriteriaMap, JudgeId } from '../types/scoring';
+import {
+  CriterionId,
+  CriterionInfo,
+  JudgeCriteriaMap,
+  JudgeId,
+  JudgeInfo,
+} from '../types/scoring';
 import { getCriteriaCoverageStats, getJudgeMaxScore } from '../utils/scoring';
 
 interface CriteriaAssignmentPanelProps {
+  judges: JudgeInfo[];
+  criteria: CriterionInfo[];
   judgeCriteria: JudgeCriteriaMap;
   onToggleJudgeCriterion: (judgeId: JudgeId, criterionId: CriterionId) => void;
+  onUpdateJudge: (judgeId: JudgeId, partial: Partial<JudgeInfo>) => void;
   onResetDefaultAssignment: () => void;
   isOpen: boolean;
   onToggleOpen: () => void;
 }
 
 export const CriteriaAssignmentPanel: React.FC<CriteriaAssignmentPanelProps> = ({
+  judges,
+  criteria,
   judgeCriteria,
   onToggleJudgeCriterion,
+  onUpdateJudge,
   onResetDefaultAssignment,
   isOpen,
   onToggleOpen,
 }) => {
-  const coverage = getCriteriaCoverageStats(judgeCriteria);
-  const isBalanced100 =
-    coverage.totalAssignedPoints === 100 &&
+  const coverage = getCriteriaCoverageStats(judges, judgeCriteria, criteria);
+  const isBalanced =
+    coverage.totalAssignedPoints === coverage.totalStandardPoints &&
     coverage.unassignedCriteria.length === 0 &&
     coverage.duplicatedCriteria.length === 0;
 
@@ -35,17 +46,17 @@ export const CriteriaAssignmentPanel: React.FC<CriteriaAssignmentPanelProps> = (
             className="min-h-[36px] text-left text-sm font-semibold text-[#1C1917] hover:text-[#9F1239] transition-colors cursor-pointer"
           >
             {isOpen
-              ? '▾ Thu gọn phân công tiêu chí BGK'
-              : '▸ Giám khảo tích chọn tiêu chí phụ trách'}
+              ? '▾ Thu gọn phân công tiêu chí & tên Ban Giám khảo'
+              : '▸ Giám khảo tích chọn tiêu chí phụ trách & sửa tên BGK'}
           </button>
           <span className="text-xs text-[#6B655E]">
             Đã gán:{' '}
             <strong
               className={`font-mono tabular-nums ${
-                isBalanced100 ? 'text-[#15803D]' : 'text-[#B45309]'
+                isBalanced ? 'text-[#15803D]' : 'text-[#B45309]'
               }`}
             >
-              {coverage.totalAssignedPoints}/100đ
+              {coverage.totalAssignedPoints}/{coverage.totalStandardPoints}đ
             </strong>
             {coverage.unassignedCriteria.length > 0 && (
               <span className="ml-1.5 text-[#DC2626]">
@@ -61,23 +72,23 @@ export const CriteriaAssignmentPanel: React.FC<CriteriaAssignmentPanelProps> = (
           className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[#D6D0C6] bg-[#FAF7F2] px-3 py-1.5 text-xs font-medium text-[#1C1917] hover:bg-white cursor-pointer whitespace-nowrap"
         >
           <RotateCcw className="h-3.5 w-3.5 text-[#57534E]" aria-hidden="true" />
-          <span>Phân công chuẩn (100đ)</span>
+          <span>Khôi phục phân công mặc định</span>
         </button>
       </div>
 
       {isOpen && (
         <div className="p-4 space-y-3">
           <p className="text-xs text-[#57534E] leading-relaxed">
-            Mỗi thành viên Ban Giám khảo tích chọn tiêu chí mình phụ trách chấm. Trần điểm tối đa của cột <strong className="font-semibold text-[#1C1917]">GK1–GK5</strong> sẽ tự động cộng theo tiêu chí đã chọn.
+            Nhấp trực tiếp vào <strong className="font-semibold text-[#1C1917]">tên Giám khảo</strong> để thay đổi nhân sự cho lần tổ chức khác, và tích chọn tiêu chí mà mỗi Giám khảo phụ trách chấm. Khi in hoặc xuất biên bản gửi các lớp, bảng điểm sẽ <strong className="font-semibold text-[#9F1239]">chỉ hiển thị tên Tiêu chí chấm (ẩn tên Giám khảo)</strong>.
           </p>
 
-          {/* Desktop 5x6 Matrix */}
+          {/* Desktop Matrix */}
           <div className="hidden md:block overflow-x-auto rounded-lg border border-[#E6DFD5]">
-            <table className="w-full min-w-[780px] border-collapse text-left text-xs">
+            <table className="w-full min-w-[820px] border-collapse text-left text-xs">
               <thead>
                 <tr className="border-b border-[#E6DFD5] bg-[#FAF7F2] text-[#57534E]">
-                  <th className="px-3 py-2.5 font-semibold w-52">Giám khảo</th>
-                  {CRITERIA.map((c) => (
+                  <th className="px-3 py-2.5 font-semibold w-56">Giám khảo (nhấp để sửa tên)</th>
+                  {criteria.map((c) => (
                     <th
                       key={c.id}
                       scope="col"
@@ -88,7 +99,7 @@ export const CriteriaAssignmentPanel: React.FC<CriteriaAssignmentPanelProps> = (
                         {c.stt}. {c.shortName}
                       </div>
                       <div className="mt-0.5 font-mono text-[11px] font-medium text-[#9F1239]">
-                        {c.maxPoints}đ{c.bonusNote ? ' (+3đ)' : ''}
+                        {c.maxPoints}đ
                       </div>
                     </th>
                   ))}
@@ -98,27 +109,38 @@ export const CriteriaAssignmentPanel: React.FC<CriteriaAssignmentPanelProps> = (
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#EFEAE2]">
-                {JUDGES.map((judge) => {
+                {judges.map((judge) => {
                   const assigned = judgeCriteria[judge.id] ?? [];
-                  const maxScore = getJudgeMaxScore(judge.id, judgeCriteria);
+                  const maxScore = getJudgeMaxScore(judge.id, judgeCriteria, criteria);
 
                   return (
                     <tr key={judge.id} className="hover:bg-[#FAF7F2]/70">
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-[#1C1917]">
+                      <td className="px-2.5 py-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-[#6B655E] shrink-0">
                             {judge.shortLabel}
                           </span>
-                          <span className="font-medium text-[#1C1917]">{judge.fullName}</span>
+                          <input
+                            type="text"
+                            aria-label={`Tên ${judge.shortLabel}`}
+                            value={judge.fullName}
+                            onChange={(e) =>
+                              onUpdateJudge(judge.id, { fullName: e.target.value })
+                            }
+                            className="w-full min-w-0 rounded border border-transparent bg-transparent px-1.5 py-1 text-xs font-medium text-[#1C1917] hover:border-[#E6DFD5] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+                          />
                           {judge.isChair && (
-                            <span className="text-[10px] font-semibold text-[#9F1239]">
+                            <span
+                              title="Trưởng ban Giám khảo"
+                              className="text-[10px] font-semibold text-[#9F1239] shrink-0"
+                            >
                               (TB)
                             </span>
                           )}
                         </div>
                       </td>
 
-                      {CRITERIA.map((crit) => {
+                      {criteria.map((crit) => {
                         const checked = assigned.includes(crit.id);
                         return (
                           <td
@@ -161,7 +183,7 @@ export const CriteriaAssignmentPanel: React.FC<CriteriaAssignmentPanelProps> = (
                   <td className="px-3 py-2 font-medium text-[#57534E]">
                     Tình trạng phân công
                   </td>
-                  {CRITERIA.map((crit) => {
+                  {criteria.map((crit) => {
                     const count = coverage.assignedCountByCriterion[crit.id] ?? 0;
                     return (
                       <td
@@ -186,11 +208,11 @@ export const CriteriaAssignmentPanel: React.FC<CriteriaAssignmentPanelProps> = (
             </table>
           </div>
 
-          {/* Mobile Touch Cards for Judge Criteria Selection */}
+          {/* Mobile Touch Cards */}
           <div className="grid grid-cols-1 gap-3 md:hidden">
-            {JUDGES.map((judge) => {
+            {judges.map((judge) => {
               const assigned = judgeCriteria[judge.id] ?? [];
-              const maxScore = getJudgeMaxScore(judge.id, judgeCriteria);
+              const maxScore = getJudgeMaxScore(judge.id, judgeCriteria, criteria);
 
               return (
                 <div
@@ -198,22 +220,27 @@ export const CriteriaAssignmentPanel: React.FC<CriteriaAssignmentPanelProps> = (
                   className="rounded-xl border border-[#E6DFD5] bg-[#FAF7F2]/60 p-3.5 space-y-2.5"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-sm font-semibold text-[#1C1917]">
-                      <span className="font-mono text-[#9F1239] mr-1.5">{judge.shortLabel}</span>
-                      {judge.fullName}
-                      {judge.isChair && (
-                        <span className="ml-1 text-xs font-normal text-[#9F1239]">
-                          (Trưởng ban)
-                        </span>
-                      )}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="font-mono text-xs font-bold text-[#9F1239] shrink-0">
+                        {judge.shortLabel}
+                      </span>
+                      <input
+                        type="text"
+                        aria-label={`Tên ${judge.shortLabel}`}
+                        value={judge.fullName}
+                        onChange={(e) =>
+                          onUpdateJudge(judge.id, { fullName: e.target.value })
+                        }
+                        className="w-full min-w-0 min-h-[38px] rounded-lg border border-[#D6D0C6] bg-white px-2.5 text-sm font-semibold text-[#1C1917] focus:border-[#9F1239] focus:outline-none"
+                      />
                     </div>
-                    <span className="font-mono text-xs font-bold tabular-nums text-[#9F1239]">
-                      Tối đa {maxScore}đ
+                    <span className="font-mono text-xs font-bold tabular-nums text-[#9F1239] shrink-0">
+                      /{maxScore}đ
                     </span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                    {CRITERIA.map((crit) => {
+                    {criteria.map((crit) => {
                       const checked = assigned.includes(crit.id);
                       return (
                         <button

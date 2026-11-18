@@ -1,77 +1,94 @@
-import { CRITERIA, JUDGES } from '../data/initialData';
 import {
   CriterionId,
   CriterionInfo,
   EvaluatedPerformance,
+  EventMetadata,
   JudgeCriteriaMap,
   JudgeId,
+  JudgeInfo,
   PerformanceItem,
+  PrizeConfig,
   PrizeTier,
   ScoringConfig,
 } from '../types/scoring';
-
-const JUDGE_IDS: JudgeId[] = ['gk1', 'gk2', 'gk3', 'gk4', 'gk5'];
-
-export const TEACHER_THEME_BONUS = 3;
-
-export const PRIZE_QUOTA: Record<Exclude<PrizeTier, 'none'>, { label: string; count: number }> = {
-  nhat: { label: 'Giải Nhất', count: 1 },
-  nhi: { label: 'Giải Nhì', count: 2 },
-  ba: { label: 'Giải Ba', count: 2 },
-  khuyen_khich: { label: 'Giải Khuyến khích', count: 6 },
-};
 
 export function roundScore(val: number): number {
   return Math.round(val * 100) / 100;
 }
 
-export function getCriterionById(id: CriterionId): CriterionInfo | undefined {
-  return CRITERIA.find((c) => c.id === id);
+export function getCriterionById(
+  id: CriterionId,
+  criteria: CriterionInfo[]
+): CriterionInfo | undefined {
+  return criteria.find((c) => c.id === id);
 }
 
 export function getJudgeMaxScore(
   judgeId: JudgeId,
-  judgeCriteria: JudgeCriteriaMap
+  judgeCriteria: JudgeCriteriaMap,
+  criteria: CriterionInfo[]
 ): number {
   const assigned = judgeCriteria[judgeId] ?? [];
   if (assigned.length === 0) return 0;
   return assigned.reduce((sum, critId) => {
-    const c = getCriterionById(critId);
+    const c = getCriterionById(critId, criteria);
     return sum + (c ? c.maxPoints : 0);
   }, 0);
 }
 
-export function getCriteriaCoverageStats(judgeCriteria: JudgeCriteriaMap): {
+export function getJudgeColumnCriterionTitle(
+  judgeId: JudgeId,
+  judgeCriteria: JudgeCriteriaMap,
+  criteria: CriterionInfo[],
+  fallbackIndex: number
+): string {
+  const assigned = judgeCriteria[judgeId] ?? [];
+  const names = assigned
+    .map((cId) => getCriterionById(cId, criteria)?.shortName)
+    .filter(Boolean) as string[];
+  if (names.length === 0) {
+    return `Tiêu chí ${fallbackIndex + 1}`;
+  }
+  if (names.length === 1) {
+    return `Điểm ${names[0]}`;
+  }
+  return names.join(' & ');
+}
+
+export function getCriteriaCoverageStats(
+  judges: JudgeInfo[],
+  judgeCriteria: JudgeCriteriaMap,
+  criteria: CriterionInfo[]
+): {
+  totalStandardPoints: number;
   totalAssignedPoints: number;
   unassignedCriteria: CriterionInfo[];
   duplicatedCriteria: CriterionInfo[];
   assignedCountByCriterion: Record<CriterionId, number>;
 } {
-  const counts: Record<CriterionId, number> = {
-    chu_de: 0,
-    trang_phuc: 0,
-    dan_dung: 0,
-    hat: 0,
-    file_nhac: 0,
-    ky_luat: 0,
-  };
+  const counts: Record<CriterionId, number> = {};
+  for (const c of criteria) {
+    counts[c.id] = 0;
+  }
 
   let totalAssignedPoints = 0;
-  for (const jId of JUDGE_IDS) {
-    const list = judgeCriteria[jId] ?? [];
+  for (const j of judges) {
+    const list = judgeCriteria[j.id] ?? [];
     for (const cId of list) {
       if (cId in counts) {
         counts[cId] += 1;
-        const info = getCriterionById(cId);
+        const info = getCriterionById(cId, criteria);
         if (info) totalAssignedPoints += info.maxPoints;
       }
     }
   }
 
-  const unassignedCriteria = CRITERIA.filter((c) => counts[c.id] === 0);
-  const duplicatedCriteria = CRITERIA.filter((c) => counts[c.id] > 1);
+  const totalStandardPoints = criteria.reduce((sum, c) => sum + c.maxPoints, 0);
+  const unassignedCriteria = criteria.filter((c) => (counts[c.id] ?? 0) === 0);
+  const duplicatedCriteria = criteria.filter((c) => (counts[c.id] ?? 0) > 1);
 
   return {
+    totalStandardPoints,
     totalAssignedPoints,
     unassignedCriteria,
     duplicatedCriteria,
@@ -94,51 +111,69 @@ export function parseScoreInput(raw: string, maxScore: number): number | null {
   return roundScore(clamped);
 }
 
-export function getPrizeForSlot(slotIndexZeroBased: number): {
+export function getPrizeForSlot(
+  slotIndexZeroBased: number,
+  prizeConfig: PrizeConfig
+): {
   prize: PrizeTier;
   prizeLabel: string;
 } {
-  if (slotIndexZeroBased === 0) {
+  const nhatEnd = prizeConfig.nhat;
+  const nhiEnd = nhatEnd + prizeConfig.nhi;
+  const baEnd = nhiEnd + prizeConfig.ba;
+  const kkEnd = baEnd + prizeConfig.khuyen_khich;
+
+  if (slotIndexZeroBased >= 0 && slotIndexZeroBased < nhatEnd) {
     return { prize: 'nhat', prizeLabel: 'Giải Nhất' };
   }
-  if (slotIndexZeroBased === 1 || slotIndexZeroBased === 2) {
+  if (slotIndexZeroBased >= nhatEnd && slotIndexZeroBased < nhiEnd) {
     return { prize: 'nhi', prizeLabel: 'Giải Nhì' };
   }
-  if (slotIndexZeroBased === 3 || slotIndexZeroBased === 4) {
+  if (slotIndexZeroBased >= nhiEnd && slotIndexZeroBased < baEnd) {
     return { prize: 'ba', prizeLabel: 'Giải Ba' };
   }
-  if (slotIndexZeroBased >= 5 && slotIndexZeroBased < 11) {
+  if (slotIndexZeroBased >= baEnd && slotIndexZeroBased < kkEnd) {
     return { prize: 'khuyen_khich', prizeLabel: 'Khuyến khích' };
   }
-  return { prize: 'none', prizeLabel: '—' };
+  return { prize: 'none', prizeLabel: 'Không đạt giải' };
 }
 
 export function evaluatePerformances(
   items: PerformanceItem[],
-  config: ScoringConfig
+  judges: JudgeInfo[],
+  config: ScoringConfig,
+  prizeConfig: PrizeConfig,
+  bonusPoints: number
 ): EvaluatedPerformance[] {
-  const activeJudges = JUDGE_IDS.filter(
-    (jId) => (config.judgeCriteria[jId] ?? []).length > 0
+  const chairJudge = judges.find((j) => j.isChair) ?? judges[0];
+  const chairId = chairJudge?.id ?? '';
+
+  const activeJudges = judges.filter(
+    (j) => (config.judgeCriteria[j.id] ?? []).length > 0
   );
-  const requiredJudgeCount = activeJudges.length > 0 ? activeJudges.length : JUDGE_IDS.length;
+  const judgeListForCheck = activeJudges.length > 0 ? activeJudges : judges;
 
   const baseList = items.map((item) => {
     let sum = 0;
     let scoredCount = 0;
-    for (const jId of JUDGE_IDS) {
-      const s = item.scores[jId];
-      if (s !== null && !Number.isNaN(s)) {
+    for (const j of judges) {
+      const s = item.scores[j.id];
+      if (s !== null && s !== undefined && !Number.isNaN(s)) {
         sum += s;
         scoredCount += 1;
       }
     }
     const judgeScoreSum = scoredCount > 0 ? roundScore(sum) : null;
-    const teacherBonus = scoredCount > 0 && item.isTeacherTheme ? TEACHER_THEME_BONUS : 0;
+    const teacherBonus = scoredCount > 0 && item.isTeacherTheme ? bonusPoints : 0;
     const totalScore = judgeScoreSum !== null ? roundScore(judgeScoreSum + teacherBonus) : null;
     const isComplete =
-      activeJudges.length > 0
-        ? activeJudges.every((jId) => item.scores[jId] !== null && !Number.isNaN(item.scores[jId]))
-        : scoredCount === requiredJudgeCount;
+      judgeListForCheck.length > 0 &&
+      judgeListForCheck.every(
+        (j) =>
+          item.scores[j.id] !== null &&
+          item.scores[j.id] !== undefined &&
+          !Number.isNaN(item.scores[j.id])
+      );
 
     return {
       ...item,
@@ -166,9 +201,9 @@ export function evaluatePerformances(
     const totB = b.totalScore ?? -1;
     if (totB !== totA) return totB - totA;
 
-    if (config.tieBreakByChair) {
-      const chairA = a.scores.gk1 ?? -1;
-      const chairB = b.scores.gk1 ?? -1;
+    if (config.tieBreakByChair && chairId) {
+      const chairA = a.scores[chairId] ?? -1;
+      const chairB = b.scores[chairId] ?? -1;
       if (chairB !== chairA) return chairB - chairA;
     }
 
@@ -200,7 +235,8 @@ export function evaluatePerformances(
     } else {
       const prev = sorted[i - 1];
       const sameTotal = item.totalScore === prev.totalScore;
-      const sameChair = (item.scores.gk1 ?? -1) === (prev.scores.gk1 ?? -1);
+      const sameChair =
+        chairId ? (item.scores[chairId] ?? -1) === (prev.scores[chairId] ?? -1) : true;
 
       if (sameTotal && config.tieBreakByChair && !sameChair) {
         rankToAssign = i + 1;
@@ -214,12 +250,12 @@ export function evaluatePerformances(
 
     currentCompetitionRank = rankToAssign;
 
-    if (hasTiedTotal && config.tieBreakByChair) {
+    if (hasTiedTotal && config.tieBreakByChair && chairId) {
       const hasDifferentChairAmongSameTotal = sorted.some(
         (other) =>
           other.id !== item.id &&
           other.totalScore === item.totalScore &&
-          (other.scores.gk1 ?? -1) !== (item.scores.gk1 ?? -1)
+          (other.scores[chairId] ?? -1) !== (item.scores[chairId] ?? -1)
       );
       if (hasDifferentChairAmongSameTotal) {
         resolvedByChair = true;
@@ -227,7 +263,7 @@ export function evaluatePerformances(
     }
 
     const slotForPrize = config.tieBreakByChair ? i : rankToAssign - 1;
-    const { prize, prizeLabel } = getPrizeForSlot(slotForPrize);
+    const { prize, prizeLabel } = getPrizeForSlot(slotForPrize, prizeConfig);
 
     evaluatedMap.set(item.id, {
       rank: rankToAssign,
@@ -257,28 +293,31 @@ export function evaluatePerformances(
   });
 }
 
+// Export CSV for sharing with classes: headers strictly show Criterion Names (no judge personal names)
 export function exportToCsv(
   evaluated: EvaluatedPerformance[],
-  judgeCriteria: JudgeCriteriaMap
+  judges: JudgeInfo[],
+  criteria: CriterionInfo[],
+  judgeCriteria: JudgeCriteriaMap,
+  eventMeta: EventMetadata
 ): void {
   const headers = [
     'STT',
     'Tên lớp',
     'Tên tiết mục',
-    'CĐ Thầy cô (+3đ)',
-    ...JUDGES.map((j) => {
-      const critNames = (judgeCriteria[j.id] ?? [])
-        .map((cId) => getCriterionById(cId)?.shortName)
-        .filter(Boolean)
-        .join(' + ');
-      return `${j.shortLabel} (${j.fullName}${critNames ? ` - ${critNames}` : ''})`;
+    `${eventMeta.bonusLabel} (+${eventMeta.bonusPoints}đ)`,
+    ...judges.map((j, idx) => {
+      const title = getJudgeColumnCriterionTitle(j.id, judgeCriteria, criteria, idx);
+      const maxScore = getJudgeMaxScore(j.id, judgeCriteria, criteria);
+      return `${title} (${maxScore}đ)`;
     }),
     'Tổng điểm',
     'Xếp thứ',
     'Xếp giải',
   ];
 
-  const escapeCsv = (value: string | number): string => {
+  const escapeCsv = (value: string | number | null | undefined): string => {
+    if (value === null || value === undefined) return '';
     const str = String(value);
     if (str.includes(',') || str.includes('"') || str.includes('\n')) {
       return `"${str.replace(/"/g, '""')}"`;
@@ -290,8 +329,8 @@ export function exportToCsv(
     row.stt,
     row.className,
     row.performanceName,
-    row.isTeacherTheme ? '+3' : '0',
-    ...JUDGE_IDS.map((jId) => (row.scores[jId] !== null ? row.scores[jId] : '')),
+    row.isTeacherTheme ? `+${eventMeta.bonusPoints}` : '0',
+    ...judges.map((j) => (row.scores[j.id] !== null && row.scores[j.id] !== undefined ? row.scores[j.id] : '')),
     row.totalScore !== null ? row.totalScore : '',
     row.rank !== null ? row.rank : '',
     row.rank !== null ? row.prizeLabel : '',
@@ -305,7 +344,7 @@ export function exportToCsv(
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.setAttribute('download', 'bieu-diem-van-nghe-20-11-2026-thcs-le-huu-lap.csv');
+  link.setAttribute('download', 'bien-ban-cham-diem-van-nghe.csv');
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

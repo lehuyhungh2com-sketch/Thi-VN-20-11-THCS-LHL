@@ -9,17 +9,23 @@ import { StandingsView } from './components/StandingsView';
 import { TopBar } from './components/TopBar';
 import {
   DEFAULT_CONFIG,
+  DEFAULT_CRITERIA,
+  DEFAULT_EVENT_META,
+  DEFAULT_JUDGES,
   DEFAULT_JUDGE_CRITERIA,
+  DEFAULT_PRIZE_CONFIG,
   INITIAL_PERFORMANCES,
   SAMPLE_RATIO_BY_STT,
-  SCHOOL_NAME,
-  SECRETARY_NAME,
 } from './data/initialData';
 import {
   ActiveTab,
   CriterionId,
+  CriterionInfo,
+  EventMetadata,
   JudgeId,
+  JudgeInfo,
   PerformanceItem,
+  PrizeConfig,
   ScoringConfig,
 } from './types/scoring';
 import {
@@ -30,78 +36,130 @@ import {
   roundScore,
 } from './utils/scoring';
 
-const STORAGE_KEY_PERFORMANCES = 'thcs-lhl-2011-performances-v3';
-const STORAGE_KEY_CONFIG = 'thcs-lhl-2011-config-v2';
+const STORAGE_KEYS = {
+  performances: 'thcs-lhl-2011-performances-v3',
+  config: 'thcs-lhl-2011-config-v3',
+  judges: 'thcs-lhl-2011-judges-v1',
+  criteria: 'thcs-lhl-2011-criteria-v1',
+  eventMeta: 'thcs-lhl-2011-meta-v1',
+  prizeConfig: 'thcs-lhl-2011-prizes-v1',
+};
 
-function loadInitialPerformances(): PerformanceItem[] {
+function loadJson<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_PERFORMANCES);
-    if (!raw) return INITIAL_PERFORMANCES;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length === 11) {
-      return parsed;
-    }
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw) as T;
   } catch {
-    // Ignore corrupted storage
+    return fallback;
   }
-  return INITIAL_PERFORMANCES;
-}
-
-function loadInitialConfig(): ScoringConfig {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_CONFIG);
-    if (!raw) return DEFAULT_CONFIG;
-    const parsed = JSON.parse(raw);
-    if (parsed && parsed.judgeCriteria) {
-      return {
-        ...DEFAULT_CONFIG,
-        ...parsed,
-        judgeCriteria: {
-          ...DEFAULT_JUDGE_CRITERIA,
-          ...parsed.judgeCriteria,
-        },
-      };
-    }
-  } catch {
-    // Ignore corrupted storage
-  }
-  return DEFAULT_CONFIG;
 }
 
 export default function App() {
-  const [performances, setPerformances] = useState<PerformanceItem[]>(loadInitialPerformances);
-  const [config, setConfig] = useState<ScoringConfig>(loadInitialConfig);
+  const [performances, setPerformances] = useState<PerformanceItem[]>(() => {
+    const loaded = loadJson<PerformanceItem[]>(STORAGE_KEYS.performances, INITIAL_PERFORMANCES);
+    return Array.isArray(loaded) && loaded.length > 0 ? loaded : INITIAL_PERFORMANCES;
+  });
+
+  const [judges, setJudges] = useState<JudgeInfo[]>(() => {
+    const loaded = loadJson<JudgeInfo[]>(STORAGE_KEYS.judges, DEFAULT_JUDGES);
+    return Array.isArray(loaded) && loaded.length > 0 ? loaded : DEFAULT_JUDGES;
+  });
+
+  const [criteria, setCriteria] = useState<CriterionInfo[]>(() => {
+    const loaded = loadJson<CriterionInfo[]>(STORAGE_KEYS.criteria, DEFAULT_CRITERIA);
+    return Array.isArray(loaded) && loaded.length > 0 ? loaded : DEFAULT_CRITERIA;
+  });
+
+  const [eventMeta, setEventMeta] = useState<EventMetadata>(() => ({
+    ...DEFAULT_EVENT_META,
+    ...loadJson<Partial<EventMetadata>>(STORAGE_KEYS.eventMeta, {}),
+  }));
+
+  const [prizeConfig, setPrizeConfig] = useState<PrizeConfig>(() => ({
+    ...DEFAULT_PRIZE_CONFIG,
+    ...loadJson<Partial<PrizeConfig>>(STORAGE_KEYS.prizeConfig, {}),
+  }));
+
+  const [config, setConfig] = useState<ScoringConfig>(() => {
+    const loaded = loadJson<Partial<ScoringConfig>>(STORAGE_KEYS.config, {});
+    return {
+      ...DEFAULT_CONFIG,
+      ...loaded,
+      judgeCriteria: loaded.judgeCriteria ?? DEFAULT_JUDGE_CRITERIA,
+    };
+  });
+
   const [activeTab, setActiveTab] = useState<ActiveTab>('ledger');
-  const [selectedId, setSelectedId] = useState<string>('tm-01');
-  const [criteriaPanelOpen, setCriteriaPanelOpen] = useState<boolean>(true);
+  const [selectedId, setSelectedId] = useState<string>(() => performances[0]?.id ?? 'tm-01');
+  const [criteriaPanelOpen, setCriteriaPanelOpen] = useState<boolean>(false);
   const [quickEntryOpen, setQuickEntryOpen] = useState<boolean>(true);
   const [draftScores, setDraftScores] = useState<Record<string, string>>({});
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY_PERFORMANCES, JSON.stringify(performances));
+      localStorage.setItem(STORAGE_KEYS.performances, JSON.stringify(performances));
     } catch {
-      // Ignore storage quota errors
+      // Ignore quota errors
     }
   }, [performances]);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config));
+      localStorage.setItem(STORAGE_KEYS.config, JSON.stringify(config));
     } catch {
-      // Ignore storage quota errors
+      // Ignore quota errors
     }
   }, [config]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.judges, JSON.stringify(judges));
+    } catch {
+      // Ignore quota errors
+    }
+  }, [judges]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.criteria, JSON.stringify(criteria));
+    } catch {
+      // Ignore quota errors
+    }
+  }, [criteria]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.eventMeta, JSON.stringify(eventMeta));
+    } catch {
+      // Ignore quota errors
+    }
+  }, [eventMeta]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.prizeConfig, JSON.stringify(prizeConfig));
+    } catch {
+      // Ignore quota errors
+    }
+  }, [prizeConfig]);
+
   const evaluated = useMemo(
-    () => evaluatePerformances(performances, config),
-    [performances, config]
+    () =>
+      evaluatePerformances(
+        performances,
+        judges,
+        config,
+        prizeConfig,
+        eventMeta.bonusPoints
+      ),
+    [performances, judges, config, prizeConfig, eventMeta.bonusPoints]
   );
 
   const handleScoreInputChange = (perfId: string, judgeId: JudgeId, raw: string) => {
     const cleaned = raw.replace(/[^0-9.,]/g, '');
     const draftKey = `${perfId}-${judgeId}`;
-    const maxScore = getJudgeMaxScore(judgeId, config.judgeCriteria);
+    const maxScore = getJudgeMaxScore(judgeId, config.judgeCriteria, criteria);
 
     setDraftScores((prev) => ({ ...prev, [draftKey]: cleaned }));
 
@@ -134,7 +192,7 @@ export default function App() {
   const handleScoreInputBlur = (perfId: string, judgeId: JudgeId) => {
     const draftKey = `${perfId}-${judgeId}`;
     const raw = draftScores[draftKey];
-    const maxScore = getJudgeMaxScore(judgeId, config.judgeCriteria);
+    const maxScore = getJudgeMaxScore(judgeId, config.judgeCriteria, criteria);
 
     if (raw !== undefined) {
       const parsed = parseScoreInput(raw, maxScore);
@@ -175,16 +233,51 @@ export default function App() {
     );
   };
 
-  const clampScoresToCriteria = (nextCriteria: ScoringConfig['judgeCriteria']) => {
-    const judgeIds: JudgeId[] = ['gk1', 'gk2', 'gk3', 'gk4', 'gk5'];
+  const handleAddPerformance = () => {
+    setPerformances((prev) => {
+      const nextStt = prev.length > 0 ? Math.max(...prev.map((p) => p.stt)) + 1 : 1;
+      const newId = `tm-${Date.now()}`;
+      const emptyScores: Record<string, number | null> = {};
+      for (const j of judges) emptyScores[j.id] = null;
+      const created: PerformanceItem = {
+        id: newId,
+        stt: nextStt,
+        className: `Lớp ${nextStt}`,
+        performanceName: '',
+        isTeacherTheme: false,
+        scores: emptyScores,
+      };
+      setSelectedId(newId);
+      return [...prev, created];
+    });
+  };
+
+  const handleRemovePerformance = (perfId: string) => {
+    setPerformances((prev) => {
+      if (prev.length <= 1) return prev;
+      const filtered = prev
+        .filter((p) => p.id !== perfId)
+        .map((p, idx) => ({ ...p, stt: idx + 1 }));
+      if (selectedId === perfId && filtered[0]) {
+        setSelectedId(filtered[0].id);
+      }
+      return filtered;
+    });
+  };
+
+  const clampScoresToCriteria = (
+    nextCriteriaMap: ScoringConfig['judgeCriteria'],
+    currentCriteriaList: CriterionInfo[],
+    currentJudges: JudgeInfo[]
+  ) => {
     setPerformances((prev) =>
       prev.map((item) => {
         const nextScores = { ...item.scores };
-        for (const jId of judgeIds) {
-          const maxScore = getJudgeMaxScore(jId, nextCriteria);
-          const currentVal = nextScores[jId];
-          if (currentVal !== null) {
-            nextScores[jId] = maxScore === 0 ? null : Math.min(currentVal, maxScore);
+        for (const j of currentJudges) {
+          const maxScore = getJudgeMaxScore(j.id, nextCriteriaMap, currentCriteriaList);
+          const currentVal = nextScores[j.id];
+          if (currentVal !== null && currentVal !== undefined) {
+            nextScores[j.id] = maxScore === 0 ? null : Math.min(currentVal, maxScore);
           }
         }
         return { ...item, scores: nextScores };
@@ -200,26 +293,140 @@ export default function App() {
       const nextList = exists
         ? currentList.filter((id) => id !== criterionId)
         : [...currentList, criterionId];
-      const nextCriteria = {
+      const nextCriteriaMap = {
         ...prev.judgeCriteria,
         [judgeId]: nextList,
       };
-      clampScoresToCriteria(nextCriteria);
+      clampScoresToCriteria(nextCriteriaMap, criteria, judges);
       return {
         ...prev,
-        judgeCriteria: nextCriteria,
+        judgeCriteria: nextCriteriaMap,
       };
     });
   };
 
   const handleResetDefaultAssignment = () => {
     setConfig((prev) => {
-      clampScoresToCriteria(DEFAULT_JUDGE_CRITERIA);
+      const resetMap: Record<string, string[]> = {};
+      for (const j of judges) {
+        resetMap[j.id] = DEFAULT_JUDGE_CRITERIA[j.id] ?? [];
+      }
+      clampScoresToCriteria(resetMap, criteria, judges);
       return {
         ...prev,
-        judgeCriteria: DEFAULT_JUDGE_CRITERIA,
+        judgeCriteria: resetMap,
       };
     });
+  };
+
+  const handleUpdateJudge = (judgeId: JudgeId, partial: Partial<JudgeInfo>) => {
+    setJudges((prev) =>
+      prev.map((j) => (j.id === judgeId ? { ...j, ...partial } : j))
+    );
+  };
+
+  const handleSetChairJudge = (judgeId: JudgeId) => {
+    setJudges((prev) =>
+      prev.map((j) => ({
+        ...j,
+        isChair: j.id === judgeId,
+        role:
+          j.id === judgeId
+            ? 'Trưởng ban Giám khảo'
+            : j.role === 'Trưởng ban Giám khảo'
+              ? 'Ủy viên Ban Giám khảo'
+              : j.role,
+      }))
+    );
+  };
+
+  const handleAddJudge = () => {
+    const nextNum = judges.length + 1;
+    const newId = `gk_${Date.now()}`;
+    const newJudge: JudgeInfo = {
+      id: newId,
+      shortLabel: `GK${nextNum}`,
+      fullName: `Giám khảo ${nextNum}`,
+      role: 'Ủy viên Ban Giám khảo',
+      isChair: false,
+    };
+    setJudges((prev) => [...prev, newJudge]);
+    setConfig((prev) => ({
+      ...prev,
+      judgeCriteria: { ...prev.judgeCriteria, [newId]: [] },
+    }));
+  };
+
+  const handleRemoveJudge = (judgeId: JudgeId) => {
+    if (judges.length <= 1) return;
+    setJudges((prev) => {
+      const next = prev.filter((j) => j.id !== judgeId);
+      if (!next.some((j) => j.isChair) && next[0]) {
+        next[0] = { ...next[0], isChair: true, role: 'Trưởng ban Giám khảo' };
+      }
+      return next;
+    });
+  };
+
+  const handleResetJudges = () => {
+    setJudges(DEFAULT_JUDGES);
+    setConfig((prev) => ({
+      ...prev,
+      judgeCriteria: DEFAULT_JUDGE_CRITERIA,
+    }));
+  };
+
+  const handleUpdateCriterion = (id: CriterionId, partial: Partial<CriterionInfo>) => {
+    setCriteria((prev) => {
+      const next = prev.map((c) => (c.id === id ? { ...c, ...partial } : c));
+      clampScoresToCriteria(config.judgeCriteria, next, judges);
+      return next;
+    });
+  };
+
+  const handleAddCriterion = () => {
+    const nextStt = criteria.length + 1;
+    const newCrit: CriterionInfo = {
+      id: `tc_${Date.now()}`,
+      stt: nextStt,
+      name: `Tiêu chí ${nextStt}`,
+      shortName: `Tiêu chí ${nextStt}`,
+      description: 'Mô tả nội dung chấm điểm của tiêu chí này.',
+      maxPoints: 10,
+    };
+    setCriteria((prev) => [...prev, newCrit]);
+  };
+
+  const handleRemoveCriterion = (id: CriterionId) => {
+    if (criteria.length <= 1) return;
+    setCriteria((prev) => {
+      const next = prev
+        .filter((c) => c.id !== id)
+        .map((c, idx) => ({ ...c, stt: idx + 1 }));
+      const nextMap: Record<string, string[]> = {};
+      for (const j of judges) {
+        nextMap[j.id] = (config.judgeCriteria[j.id] ?? []).filter((cId) => cId !== id);
+      }
+      setConfig((prevCfg) => ({ ...prevCfg, judgeCriteria: nextMap }));
+      clampScoresToCriteria(nextMap, next, judges);
+      return next;
+    });
+  };
+
+  const handleResetAllDefaults = () => {
+    setEventMeta(DEFAULT_EVENT_META);
+    setCriteria(DEFAULT_CRITERIA);
+    setJudges(DEFAULT_JUDGES);
+    setPrizeConfig(DEFAULT_PRIZE_CONFIG);
+    setConfig(DEFAULT_CONFIG);
+  };
+
+  const handleUpdateEventMeta = (partial: Partial<EventMetadata>) => {
+    setEventMeta((prev) => ({ ...prev, ...partial }));
+  };
+
+  const handleUpdatePrizeConfig = (partial: Partial<PrizeConfig>) => {
+    setPrizeConfig((prev) => ({ ...prev, ...partial }));
   };
 
   const handleChangeConfig = (partial: Partial<ScoringConfig>) => {
@@ -227,27 +434,22 @@ export default function App() {
   };
 
   const handleLoadSampleScores = () => {
-    const judgeIds: JudgeId[] = ['gk1', 'gk2', 'gk3', 'gk4', 'gk5'];
     setDraftScores({});
     setPerformances((prev) =>
       prev.map((item) => {
-        const ratios = SAMPLE_RATIO_BY_STT[item.stt];
-        if (!ratios) return item;
+        const ratios = SAMPLE_RATIO_BY_STT[item.stt] ?? {};
         const nextScores = { ...item.scores };
-        for (const jId of judgeIds) {
-          const maxScore = getJudgeMaxScore(jId, config.judgeCriteria);
+        for (const j of judges) {
+          const maxScore = getJudgeMaxScore(j.id, config.judgeCriteria, criteria);
           if (maxScore === 0) {
-            nextScores[jId] = null;
+            nextScores[j.id] = null;
           } else {
-            // Round to nearest 0.5 for clean realistic judge marks
-            const rawVal = maxScore * ratios[jId];
-            nextScores[jId] = roundScore(Math.round(rawVal * 2) / 2);
+            const ratio = ratios[j.id] ?? 0.88;
+            const rawVal = maxScore * ratio;
+            nextScores[j.id] = roundScore(Math.round(rawVal * 2) / 2);
           }
         }
-        return {
-          ...item,
-          scores: nextScores,
-        };
+        return { ...item, scores: nextScores };
       })
     );
   };
@@ -255,10 +457,11 @@ export default function App() {
   const handleClearAllScores = () => {
     setDraftScores({});
     setPerformances((prev) =>
-      prev.map((item) => ({
-        ...item,
-        scores: { gk1: null, gk2: null, gk3: null, gk4: null, gk5: null },
-      }))
+      prev.map((item) => {
+        const empty: Record<string, number | null> = {};
+        for (const j of judges) empty[j.id] = null;
+        return { ...item, scores: empty };
+      })
     );
   };
 
@@ -267,21 +470,37 @@ export default function App() {
   };
 
   const handleExportCsv = () => {
-    exportToCsv(evaluated, config.judgeCriteria);
+    exportToCsv(evaluated, judges, criteria, config.judgeCriteria, eventMeta);
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF7F2] text-[#1C1917]">
-      <TopBar activeTab={activeTab} onSelectTab={setActiveTab} onPrint={handlePrint} />
+      <TopBar
+        brandTitle={eventMeta.schoolName}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        onPrint={handlePrint}
+      />
 
-      <EventMasthead evaluated={evaluated} config={config} />
+      <EventMasthead
+        eventMeta={eventMeta}
+        onUpdateEventMeta={handleUpdateEventMeta}
+        evaluated={evaluated}
+        judges={judges}
+        criteria={criteria}
+        config={config}
+        prizeConfig={prizeConfig}
+      />
 
       <main className="no-print flex-1 mx-auto w-full max-w-[1400px] px-4 py-5 pb-24 sm:px-6 md:py-6 md:pb-8 lg:px-8">
         {activeTab === 'ledger' && (
           <div className="space-y-4">
             <CriteriaAssignmentPanel
+              judges={judges}
+              criteria={criteria}
               judgeCriteria={config.judgeCriteria}
               onToggleJudgeCriterion={handleToggleJudgeCriterion}
+              onUpdateJudge={handleUpdateJudge}
               onResetDefaultAssignment={handleResetDefaultAssignment}
               isOpen={criteriaPanelOpen}
               onToggleOpen={() => setCriteriaPanelOpen((v) => !v)}
@@ -289,6 +508,9 @@ export default function App() {
 
             <QuickEntryPanel
               performances={evaluated}
+              judges={judges}
+              criteria={criteria}
+              eventMeta={eventMeta}
               selectedId={selectedId}
               onSelectId={setSelectedId}
               draftScores={draftScores}
@@ -302,6 +524,9 @@ export default function App() {
 
             <ScoringTable
               evaluated={evaluated}
+              judges={judges}
+              criteria={criteria}
+              eventMeta={eventMeta}
               selectedId={selectedId}
               onSelectId={setSelectedId}
               draftScores={draftScores}
@@ -310,6 +535,8 @@ export default function App() {
               onUpdateClassName={handleUpdateClassName}
               onUpdatePerformanceName={handleUpdatePerformanceName}
               onToggleTeacherTheme={handleToggleTeacherTheme}
+              onAddPerformance={handleAddPerformance}
+              onRemovePerformance={handleRemovePerformance}
               config={config}
               onChangeConfig={handleChangeConfig}
               onLoadSampleScores={handleLoadSampleScores}
@@ -322,6 +549,9 @@ export default function App() {
         {activeTab === 'standings' && (
           <StandingsView
             evaluated={evaluated}
+            judges={judges}
+            eventMeta={eventMeta}
+            prizeConfig={prizeConfig}
             onExportCsv={handleExportCsv}
             onPrint={handlePrint}
             onBackToLedger={() => setActiveTab('ledger')}
@@ -329,25 +559,56 @@ export default function App() {
         )}
 
         {activeTab === 'jury' && (
-          <JuryView config={config} onBackToLedger={() => setActiveTab('ledger')} />
+          <JuryView
+            judges={judges}
+            criteria={criteria}
+            config={config}
+            eventMeta={eventMeta}
+            performanceCount={performances.length}
+            prizeConfig={prizeConfig}
+            onUpdateJudge={handleUpdateJudge}
+            onSetChairJudge={handleSetChairJudge}
+            onAddJudge={handleAddJudge}
+            onRemoveJudge={handleRemoveJudge}
+            onUpdateEventMeta={handleUpdateEventMeta}
+            onResetJudges={handleResetJudges}
+            onBackToLedger={() => setActiveTab('ledger')}
+          />
         )}
 
         {activeTab === 'rules' && (
-          <RulesView onBackToLedger={() => setActiveTab('ledger')} />
+          <RulesView
+            criteria={criteria}
+            eventMeta={eventMeta}
+            prizeConfig={prizeConfig}
+            onUpdateCriterion={handleUpdateCriterion}
+            onAddCriterion={handleAddCriterion}
+            onRemoveCriterion={handleRemoveCriterion}
+            onUpdateEventMeta={handleUpdateEventMeta}
+            onUpdatePrizeConfig={handleUpdatePrizeConfig}
+            onResetAllDefaults={handleResetAllDefaults}
+            onBackToLedger={() => setActiveTab('ledger')}
+          />
         )}
       </main>
 
       <footer className="no-print border-t border-[#E6DFD5] bg-white py-4 pb-20 md:pb-4 text-xs text-[#6B655E]">
         <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6 lg:px-8">
           <span>
-            {SCHOOL_NAME} · Hội thi Văn nghệ Kỷ niệm 44 năm Ngày Nhà giáo Việt Nam 20/11
+            {eventMeta.schoolName} · {eventMeta.eventTitle}
           </span>
-          <span>Thư ký tổng hợp: {SECRETARY_NAME}</span>
+          <span>Thư ký tổng hợp: {eventMeta.secretaryName || '—'}</span>
         </div>
       </footer>
 
-      {/* A4 Landscape Official Print Layout */}
-      <PrintSheet evaluated={evaluated} config={config} />
+      {/* A4 Landscape Official Print Layout (Anonymous to classes: Criterion headers only) */}
+      <PrintSheet
+        evaluated={evaluated}
+        judges={judges}
+        criteria={criteria}
+        eventMeta={eventMeta}
+        config={config}
+      />
     </div>
   );
 }

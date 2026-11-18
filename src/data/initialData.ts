@@ -1,20 +1,32 @@
 import {
   CriterionInfo,
+  EventMetadata,
   JudgeCriteriaMap,
-  JudgeId,
   JudgeInfo,
   PerformanceItem,
+  PrizeConfig,
   ScoringConfig,
 } from '../types/scoring';
 
-export const SCHOOL_NAME = 'Liên đội Trường THCS Lê Hữu Lập';
-export const EVENT_TITLE =
-  'Hội thi Văn nghệ Chào mừng kỷ niệm 44 năm Ngày Nhà giáo Việt Nam';
-export const EVENT_DATE_RANGE = '20/11/1982 – 20/11/2026';
-export const EVENT_LOCATION_DATE = 'Hậu Lộc, ngày 16 tháng 11 năm 2026';
-export const SECRETARY_NAME = 'Nguyễn Thu Phương';
+export const DEFAULT_EVENT_META: EventMetadata = {
+  organizationHeader: 'ĐỘI TNTP HỒ CHÍ MINH',
+  schoolName: 'Liên đội Trường THCS Lê Hữu Lập',
+  eventTitle: 'Hội thi Văn nghệ Chào mừng kỷ niệm 44 năm Ngày Nhà giáo Việt Nam',
+  eventDateRange: '20/11/1982 – 20/11/2026',
+  eventLocationDate: 'Hậu Lộc, ngày 16 tháng 11 năm 2026',
+  secretaryName: 'Nguyễn Thu Phương',
+  bonusLabel: 'CĐ ca ngợi thầy cô',
+  bonusPoints: 3,
+};
 
-export const CRITERIA: CriterionInfo[] = [
+export const DEFAULT_PRIZE_CONFIG: PrizeConfig = {
+  nhat: 1,
+  nhi: 2,
+  ba: 2,
+  khuyen_khich: 6,
+};
+
+export const DEFAULT_CRITERIA: CriterionInfo[] = [
   {
     id: 'chu_de',
     stt: 1,
@@ -44,7 +56,8 @@ export const CRITERIA: CriterionInfo[] = [
       { label: 'Mức độ đồng đều', maxPoints: 10 },
       { label: 'Nhiều động tác khó, phù hợp lời ca', maxPoints: 10 },
       {
-        label: 'Kỹ thuật biểu diễn người múa (động tác chuẩn, thể hiện sắc thái trên nét mặt và động tác)',
+        label:
+          'Kỹ thuật biểu diễn người múa (động tác chuẩn, thể hiện sắc thái trên nét mặt và động tác)',
         maxPoints: 5,
       },
     ],
@@ -81,7 +94,7 @@ export const CRITERIA: CriterionInfo[] = [
   },
 ];
 
-export const JUDGES: JudgeInfo[] = [
+export const DEFAULT_JUDGES: JudgeInfo[] = [
   {
     id: 'gk1',
     shortLabel: 'GK1',
@@ -115,7 +128,6 @@ export const JUDGES: JudgeInfo[] = [
   },
 ];
 
-// Default balanced assignment of the 6 criteria (100 points total) across the 5 judges
 export const DEFAULT_JUDGE_CRITERIA: JudgeCriteriaMap = {
   gk1: ['chu_de'],
   gk2: ['trang_phuc'],
@@ -130,7 +142,6 @@ export const DEFAULT_CONFIG: ScoringConfig = {
   judgeCriteria: DEFAULT_JUDGE_CRITERIA,
 };
 
-// Exact performance order from Danh sách thứ tự biểu diễn (16/11/2026) — 11 lớp tham gia
 export const INITIAL_PERFORMANCES: PerformanceItem[] = [
   {
     id: 'tm-01',
@@ -222,8 +233,7 @@ export const INITIAL_PERFORMANCES: PerformanceItem[] = [
   },
 ];
 
-// Normalized 0-1 ratios per performance for realistic sample generation regardless of criteria assignment
-export const SAMPLE_RATIO_BY_STT: Record<number, Record<JudgeId, number>> = {
+export const SAMPLE_RATIO_BY_STT: Record<number, Record<string, number>> = {
   1: { gk1: 0.94, gk2: 0.92, gk3: 0.94, gk4: 0.9, gk5: 0.95 },
   2: { gk1: 0.86, gk2: 0.84, gk3: 0.82, gk4: 0.86, gk5: 0.88 },
   3: { gk1: 0.9, gk2: 0.88, gk3: 0.86, gk4: 0.88, gk5: 0.9 },
