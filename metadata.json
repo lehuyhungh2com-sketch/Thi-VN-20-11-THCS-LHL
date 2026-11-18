@@ -1,0 +1,6 @@
+{
+  "name": "Biểu Điểm Văn Nghệ 20/11 - THCS Lê Hữu Lập",
+  "description": "Biểu điểm chấm thi Văn nghệ Trường THCS Lê Hữu Lập chào mừng kỷ niệm 44 năm Ngày Nhà giáo Việt Nam 20/11, tự động cộng điểm, xếp thứ hạng và xếp giải.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

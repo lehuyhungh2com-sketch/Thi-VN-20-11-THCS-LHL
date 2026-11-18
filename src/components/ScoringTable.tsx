@@ -1,0 +1,462 @@
+import React, { useRef, useState } from 'react';
+import {
+  ArrowDownWideNarrow,
+  ArrowUpDown,
+  Download,
+  RotateCcw,
+  Sparkles,
+} from 'lucide-react';
+import { JUDGES } from '../data/initialData';
+import {
+  EvaluatedPerformance,
+  JudgeId,
+  PrizeTier,
+  ScoringConfig,
+} from '../types/scoring';
+import {
+  formatTotalScore,
+  getCriterionById,
+  getJudgeMaxScore,
+} from '../utils/scoring';
+
+interface ScoringTableProps {
+  evaluated: EvaluatedPerformance[];
+  selectedId: string;
+  onSelectId: (id: string) => void;
+  draftScores: Record<string, string>;
+  onScoreInputChange: (perfId: string, judgeId: JudgeId, raw: string) => void;
+  onScoreInputBlur: (perfId: string, judgeId: JudgeId) => void;
+  onUpdateClassName: (perfId: string, value: string) => void;
+  onUpdatePerformanceName: (perfId: string, value: string) => void;
+  onToggleTeacherTheme: (perfId: string) => void;
+  config: ScoringConfig;
+  onChangeConfig: (next: Partial<ScoringConfig>) => void;
+  onLoadSampleScores: () => void;
+  onClearAllScores: () => void;
+  onExportCsv: () => void;
+}
+
+const PRIZE_TEXT_STYLE: Record<PrizeTier, string> = {
+  nhat: 'font-bold text-[#9F1239]',
+  nhi: 'font-semibold text-[#B45309]',
+  ba: 'font-semibold text-[#1E3A8A]',
+  khuyen_khich: 'font-medium text-[#374151]',
+  none: 'text-[#A8A29E]',
+};
+
+export const ScoringTable: React.FC<ScoringTableProps> = ({
+  evaluated,
+  selectedId,
+  onSelectId,
+  draftScores,
+  onScoreInputChange,
+  onScoreInputBlur,
+  onUpdateClassName,
+  onUpdatePerformanceName,
+  onToggleTeacherTheme,
+  config,
+  onChangeConfig,
+  onLoadSampleScores,
+  onClearAllScores,
+  onExportCsv,
+}) => {
+  const [sortByRank, setSortByRank] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const cellRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const displayedRows = sortByRank
+    ? [...evaluated].sort((a, b) => {
+        if (a.rank !== null && b.rank !== null) {
+          if (a.rank !== b.rank) return a.rank - b.rank;
+          return (b.totalScore ?? 0) - (a.totalScore ?? 0);
+        }
+        if (a.rank !== null) return -1;
+        if (b.rank !== null) return 1;
+        return a.stt - b.stt;
+      })
+    : evaluated;
+
+  const hasAnyScore = evaluated.some((r) => r.scoredCount > 0);
+
+  const handleCellKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    rowIndex: number,
+    judgeIndex: number
+  ) => {
+    const focusCell = (rIdx: number, jIdx: number) => {
+      const targetRow = displayedRows[rIdx];
+      const targetJudge = JUDGES[jIdx];
+      if (!targetRow || !targetJudge) return;
+      const key = `${targetRow.id}-${targetJudge.id}`;
+      const el = cellRefs.current[key];
+      if (el) {
+        onSelectId(targetRow.id);
+        el.focus();
+        el.select();
+      }
+    };
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (rowIndex < displayedRows.length - 1) {
+        focusCell(rowIndex + 1, judgeIndex);
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (rowIndex > 0) {
+        focusCell(rowIndex - 1, judgeIndex);
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (judgeIndex < JUDGES.length - 1) {
+        focusCell(rowIndex, judgeIndex + 1);
+      } else if (rowIndex < displayedRows.length - 1) {
+        focusCell(rowIndex + 1, 0);
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Workspace Toolbar */}
+      <div className="no-print flex flex-col gap-3 rounded-md border border-[#E5E0D8] bg-white px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <div
+            role="group"
+            aria-label="Sắp xếp bảng điểm"
+            className="inline-flex items-center rounded border border-[#E5E0D8] bg-[#FAF8F5] p-0.5"
+          >
+            <button
+              type="button"
+              onClick={() => setSortByRank(false)}
+              className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                !sortByRank
+                  ? 'bg-white text-[#1C1917] shadow-xs'
+                  : 'text-[#6B655E] hover:text-[#1C1917]'
+              }`}
+            >
+              <ArrowUpDown className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Theo STT</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortByRank(true)}
+              className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                sortByRank
+                  ? 'bg-white text-[#9F1239] shadow-xs'
+                  : 'text-[#6B655E] hover:text-[#1C1917]'
+              }`}
+            >
+              <ArrowDownWideNarrow className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Theo thứ hạng</span>
+            </button>
+          </div>
+
+          <label className="inline-flex items-center gap-2 text-xs text-[#57534E] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={config.tieBreakByChair}
+              onChange={(e) => onChangeConfig({ tieBreakByChair: e.target.checked })}
+              className="h-3.5 w-3.5 rounded border-[#D6D0C6] accent-[#9F1239]"
+            />
+            <span>Phân định đồng điểm theo Trưởng ban (GK1)</span>
+          </label>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onLoadSampleScores}
+            className="inline-flex items-center gap-1.5 rounded border border-[#D6D0C6] bg-white px-3 py-1.5 text-xs font-medium text-[#1C1917] transition-colors hover:bg-[#FAF8F5] whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-[#B45309]" aria-hidden="true" />
+            <span>Điền điểm mẫu</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onExportCsv}
+            className="inline-flex items-center gap-1.5 rounded border border-[#D6D0C6] bg-white px-3 py-1.5 text-xs font-medium text-[#1C1917] transition-colors hover:bg-[#FAF8F5] whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            <Download className="h-3.5 w-3.5 text-[#57534E]" aria-hidden="true" />
+            <span>Xuất Excel (CSV)</span>
+          </button>
+
+          {hasAnyScore && !confirmClear && (
+            <button
+              type="button"
+              onClick={() => setConfirmClear(true)}
+              className="inline-flex items-center gap-1.5 rounded border border-[#E5E0D8] bg-white px-3 py-1.5 text-xs font-medium text-[#6B655E] transition-colors hover:border-[#DC2626]/40 hover:text-[#DC2626] whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Xóa điểm</span>
+            </button>
+          )}
+
+          {confirmClear && (
+            <div className="inline-flex items-center gap-1.5 rounded border border-[#DC2626]/40 bg-[#FEF2F2] px-2.5 py-1">
+              <span className="text-xs font-medium text-[#991B1B]">Xóa hết điểm?</span>
+              <button
+                type="button"
+                onClick={() => {
+                  onClearAllScores();
+                  setConfirmClear(false);
+                }}
+                className="rounded bg-[#DC2626] px-2 py-0.5 text-xs font-semibold text-white hover:bg-[#B91C1C] cursor-pointer"
+              >
+                Xác nhận
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmClear(false)}
+                className="rounded px-1.5 py-0.5 text-xs font-medium text-[#57534E] hover:text-[#1C1917] cursor-pointer"
+              >
+                Hủy
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main 11-Column Scoring Ledger */}
+      <div className="overflow-x-auto rounded-md border border-[#E5E0D8] bg-white">
+        <table className="w-full min-w-[1140px] border-collapse text-left text-sm">
+          <thead>
+            <tr className="border-b border-[#E5E0D8] bg-[#FAF8F5] text-xs text-[#57534E]">
+              <th scope="col" className="w-12 px-3 py-3 text-center font-semibold">
+                STT
+              </th>
+              <th scope="col" className="w-20 px-2.5 py-3 font-semibold">
+                Tên lớp
+              </th>
+              <th scope="col" className="min-w-[270px] px-3 py-3 font-semibold">
+                Tên Tiết mục & Cộng CĐ Thầy cô (+3đ)
+              </th>
+              {JUDGES.map((judge) => {
+                const assignedIds = config.judgeCriteria[judge.id] ?? [];
+                const critNames = assignedIds
+                  .map((cId) => getCriterionById(cId)?.shortName)
+                  .filter(Boolean)
+                  .join(' + ');
+                const maxScore = getJudgeMaxScore(judge.id, config.judgeCriteria);
+
+                return (
+                  <th
+                    key={judge.id}
+                    scope="col"
+                    className="w-28 border-l border-[#ECE7DF] px-2 py-2.5 text-center align-top"
+                  >
+                    <div className="font-mono text-xs font-bold text-[#1C1917]">
+                      {judge.shortLabel}
+                      {judge.isChair && (
+                        <span className="ml-1 text-[10px] font-semibold text-[#9F1239]">
+                          (TB)
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 text-[11px] font-medium text-[#44403C] leading-tight">
+                      {judge.fullName}
+                    </div>
+                    <div className="mt-1 text-[10px] leading-tight text-[#6B655E]">
+                      {critNames ? (
+                        <>
+                          <div>{critNames}</div>
+                          <div className="font-mono font-semibold text-[#9F1239] mt-0.5">
+                            Tối đa {maxScore}đ
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-[#A8A29E]">Chưa chọn TC</span>
+                      )}
+                    </div>
+                  </th>
+                );
+              })}
+              <th
+                scope="col"
+                className="w-28 border-l border-[#E5E0D8] bg-[#F5F2EC] px-3 py-3 text-right font-semibold text-[#1C1917]"
+              >
+                <div>Tổng điểm</div>
+                <div className="text-[10px] font-normal text-[#6B655E]">(100 + 3đ)</div>
+              </th>
+              <th
+                scope="col"
+                className="w-20 border-l border-[#ECE7DF] bg-[#F5F2EC] px-2 py-3 text-center font-semibold text-[#1C1917]"
+              >
+                Xếp thứ
+              </th>
+              <th
+                scope="col"
+                className="w-32 border-l border-[#ECE7DF] bg-[#F5F2EC] px-3 py-3 font-semibold text-[#1C1917]"
+              >
+                Xếp giải
+              </th>
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-[#ECE7DF]">
+            {displayedRows.map((row, rowIdx) => {
+              const isSelected = row.id === selectedId;
+              const isTopThree = row.rank !== null && row.rank <= 3;
+
+              return (
+                <tr
+                  key={row.id}
+                  onClick={() => onSelectId(row.id)}
+                  className={`transition-colors ${
+                    isSelected
+                      ? 'bg-[#FFF1F2]/45'
+                      : isTopThree
+                        ? 'bg-[#FFFBEB]/35 hover:bg-[#FAF8F5]'
+                        : 'hover:bg-[#FAF8F5]'
+                  }`}
+                >
+                  {/* 1. STT */}
+                  <td className="px-3 py-2 text-center font-mono text-xs font-semibold tabular-nums text-[#6B655E]">
+                    {String(row.stt).padStart(2, '0')}
+                  </td>
+
+                  {/* 2. Tên lớp */}
+                  <td className="px-2 py-1.5">
+                    <input
+                      type="text"
+                      aria-label={`Tên lớp tiết mục ${row.stt}`}
+                      value={row.className}
+                      onChange={(e) => onUpdateClassName(row.id, e.target.value)}
+                      className="w-full rounded border border-transparent bg-transparent px-1.5 py-1.5 text-sm font-semibold text-[#1C1917] hover:border-[#E5E0D8] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+                    />
+                  </td>
+
+                  {/* 3. Tên Tiết mục + Toggle +3đ CĐ thầy cô */}
+                  <td className="px-2 py-1.5">
+                    <input
+                      type="text"
+                      aria-label={`Tên tiết mục lớp ${row.className}`}
+                      placeholder="Chưa đăng ký tiết mục (nhấp để nhập)"
+                      value={row.performanceName}
+                      onChange={(e) => onUpdatePerformanceName(row.id, e.target.value)}
+                      className="w-full rounded border border-transparent bg-transparent px-2 py-1 text-sm text-[#1C1917] placeholder:text-[#A8A29E] hover:border-[#E5E0D8] focus:border-[#9F1239] focus:bg-white focus:outline-none"
+                    />
+                    <label
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-0.5 inline-flex items-center gap-1.5 px-2 text-[11px] text-[#6B655E] cursor-pointer select-none hover:text-[#1C1917]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={row.isTeacherTheme}
+                        onChange={() => onToggleTeacherTheme(row.id)}
+                        className="h-3 w-3 rounded border-[#D6D0C6] accent-[#9F1239]"
+                      />
+                      <span className={row.isTeacherTheme ? 'text-[#9F1239] font-medium' : ''}>
+                        CĐ ca ngợi thầy cô (+3đ)
+                      </span>
+                    </label>
+                  </td>
+
+                  {/* 4–8. GK1 .. GK5 */}
+                  {JUDGES.map((judge, judgeIdx) => {
+                    const key = `${row.id}-${judge.id}`;
+                    const scoreVal = row.scores[judge.id];
+                    const displayValue =
+                      key in draftScores
+                        ? draftScores[key]
+                        : scoreVal !== null
+                          ? String(scoreVal)
+                          : '';
+                    const maxScore = getJudgeMaxScore(judge.id, config.judgeCriteria);
+
+                    return (
+                      <td
+                        key={judge.id}
+                        className="border-l border-[#ECE7DF] px-1.5 py-1.5 text-center"
+                      >
+                        <input
+                          ref={(el) => {
+                            cellRefs.current[key] = el;
+                          }}
+                          type="text"
+                          inputMode="decimal"
+                          disabled={maxScore === 0}
+                          aria-label={`Điểm ${judge.shortLabel} (${judge.fullName}) cho lớp ${row.className}, tối đa ${maxScore} điểm`}
+                          placeholder={maxScore > 0 ? `/${maxScore}` : '—'}
+                          value={displayValue}
+                          onFocus={() => onSelectId(row.id)}
+                          onChange={(e) =>
+                            onScoreInputChange(row.id, judge.id, e.target.value)
+                          }
+                          onBlur={() => onScoreInputBlur(row.id, judge.id)}
+                          onKeyDown={(e) => handleCellKeyDown(e, rowIdx, judgeIdx)}
+                          className="w-full rounded border border-transparent bg-transparent px-2 py-1.5 text-center font-mono text-sm font-medium tabular-nums text-[#1C1917] placeholder:text-[#C7C2BA] placeholder:text-xs hover:border-[#D6D0C6] hover:bg-white focus:border-[#9F1239] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#9F1239] disabled:opacity-40"
+                        />
+                      </td>
+                    );
+                  })}
+
+                  {/* 9. Tổng điểm */}
+                  <td className="border-l border-[#E5E0D8] bg-[#FAF8F5]/60 px-3 py-2 text-right">
+                    <div className="font-mono text-sm font-bold tabular-nums text-[#1C1917]">
+                      {formatTotalScore(row.totalScore)}
+                    </div>
+                    {row.teacherBonus > 0 && (
+                      <div className="font-mono text-[10px] font-medium text-[#9F1239] tabular-nums">
+                        +{row.teacherBonus}đ CĐ
+                      </div>
+                    )}
+                  </td>
+
+                  {/* 10. Xếp thứ */}
+                  <td className="border-l border-[#ECE7DF] bg-[#FAF8F5]/60 px-2 py-2 text-center font-mono text-sm font-semibold tabular-nums">
+                    {row.rank !== null ? (
+                      <span
+                        className={
+                          row.rank === 1
+                            ? 'text-[#9F1239] font-bold'
+                            : row.rank <= 5
+                              ? 'text-[#1C1917]'
+                              : 'text-[#57534E]'
+                        }
+                      >
+                        {row.rank}
+                        {row.resolvedByChair && (
+                          <sup
+                            title="Đồng tổng điểm, phân định theo điểm Trưởng ban (GK1)"
+                            className="ml-0.5 text-[10px] text-[#B45309]"
+                          >
+                            *
+                          </sup>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-[#C7C2BA]">—</span>
+                    )}
+                  </td>
+
+                  {/* 11. Xếp giải */}
+                  <td className="border-l border-[#ECE7DF] bg-[#FAF8F5]/60 px-3 py-2 text-sm whitespace-nowrap">
+                    {row.rank !== null ? (
+                      <span className={PRIZE_TEXT_STYLE[row.prize]}>{row.prizeLabel}</span>
+                    ) : (
+                      <span className="text-xs text-[#A8A29E]">Chưa xếp</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Quiet legend */}
+      <div className="no-print flex flex-wrap items-center justify-between gap-2 text-xs text-[#6B655E]">
+        <p>
+          Gợi ý: Tích chọn <strong className="font-medium text-[#1C1917]">CĐ ca ngợi thầy cô (+3đ)</strong> để hệ thống tự động cộng thêm 3 điểm thưởng vào Tổng điểm (tối đa 103đ). Dữ liệu tự động lưu trên trình duyệt.
+        </p>
+        {evaluated.some((r) => r.resolvedByChair) && (
+          <p className="text-[#B45309]">
+            * Ký hiệu sao: Các lớp đồng tổng điểm được phân định thứ hạng theo điểm Trưởng ban (GK1 Lê Thị Hoa).
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
