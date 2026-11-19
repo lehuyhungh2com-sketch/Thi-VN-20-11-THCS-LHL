@@ -1,4 +1,5 @@
 import {
+  AppBackupData,
   CriterionId,
   CriterionInfo,
   EvaluatedPerformance,
@@ -350,3 +351,71 @@ export function exportToCsv(
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+export function exportBackupJson(data: Omit<AppBackupData, 'version' | 'exportedAt'>): string {
+  const now = new Date();
+  const dateStamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+    now.getDate()
+  ).padStart(2, '0')}`;
+  const fileName = `du-phong-van-nghe-${dateStamp}.json`;
+
+  const payload: AppBackupData = {
+    version: 1,
+    exportedAt: now.toISOString(),
+    ...data,
+  };
+
+  const jsonString = JSON.stringify(payload, null, 2);
+  const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', fileName);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  return fileName;
+}
+
+export function parseBackupJson(rawText: string): AppBackupData {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    throw new Error('File không đúng định dạng JSON hợp lệ.');
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Nội dung file dự phòng không hợp lệ.');
+  }
+
+  const obj = parsed as Partial<AppBackupData>;
+
+  if (
+    !Array.isArray(obj.performances) ||
+    obj.performances.length === 0 ||
+    !Array.isArray(obj.judges) ||
+    obj.judges.length === 0 ||
+    !Array.isArray(obj.criteria) ||
+    obj.criteria.length === 0 ||
+    !obj.eventMeta ||
+    !obj.config ||
+    !obj.prizeConfig
+  ) {
+    throw new Error('File dự phòng thiếu dữ liệu cấu hình hoặc danh sách tiết mục.');
+  }
+
+  return {
+    version: typeof obj.version === 'number' ? obj.version : 1,
+    exportedAt: typeof obj.exportedAt === 'string' ? obj.exportedAt : new Date().toISOString(),
+    eventMeta: obj.eventMeta,
+    judges: obj.judges,
+    criteria: obj.criteria,
+    prizeConfig: obj.prizeConfig,
+    config: obj.config,
+    performances: obj.performances,
+  };
+}
+

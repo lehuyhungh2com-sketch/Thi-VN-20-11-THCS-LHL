@@ -5,8 +5,10 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  FolderOpen,
   Plus,
   RotateCcw,
+  Save,
   Sparkles,
   Trash2,
 } from 'lucide-react';
@@ -45,6 +47,8 @@ interface ScoringTableProps {
   onLoadSampleScores: () => void;
   onClearAllScores: () => void;
   onExportCsv: () => void;
+  onExportBackup: () => void;
+  onImportBackup: (file: File) => void;
 }
 
 const PRIZE_TEXT_STYLE: Record<PrizeTier, string> = {
@@ -75,10 +79,13 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
   onLoadSampleScores,
   onClearAllScores,
   onExportCsv,
+  onExportBackup,
+  onImportBackup,
 }) => {
   const [sortByRank, setSortByRank] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const cellRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const displayedRows = sortByRank
     ? [...evaluated].sort((a, b) => {
@@ -208,6 +215,38 @@ export const ScoringTable: React.FC<ScoringTableProps> = ({
           >
             <Download className="h-3.5 w-3.5 text-[#57534E]" aria-hidden="true" />
             <span>Xuất Excel</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onExportBackup}
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[#D6D0C6] bg-white px-3 py-1.5 text-xs font-medium text-[#1C1917] transition-colors hover:bg-[#FAF7F2] whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            <Save className="h-3.5 w-3.5 text-[#9F1239]" aria-hidden="true" />
+            <span>Lưu dự phòng (.json)</span>
+          </button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            aria-label="Chọn file dự phòng (.json)"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                onImportBackup(file);
+              }
+              e.target.value = '';
+            }}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-[#D6D0C6] bg-white px-3 py-1.5 text-xs font-medium text-[#1C1917] transition-colors hover:bg-[#FAF7F2] whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            <FolderOpen className="h-3.5 w-3.5 text-[#57534E]" aria-hidden="true" />
+            <span>Mở file dự phòng</span>
           </button>
 
           {hasAnyScore && !confirmClear && (

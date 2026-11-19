@@ -79,3 +79,15 @@ export interface ScoringConfig {
 }
 
 export type ActiveTab = 'ledger' | 'standings' | 'jury' | 'rules';
+
+export interface AppBackupData {
+  version: number;
+  exportedAt: string;
+  eventMeta: EventMetadata;
+  judges: JudgeInfo[];
+  criteria: CriterionInfo[];
+  prizeConfig: PrizeConfig;
+  config: ScoringConfig;
+  performances: PerformanceItem[];
+}
+

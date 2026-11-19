@@ -30,8 +30,10 @@ import {
 } from './types/scoring';
 import {
   evaluatePerformances,
+  exportBackupJson,
   exportToCsv,
   getJudgeMaxScore,
+  parseBackupJson,
   parseScoreInput,
   roundScore,
 } from './utils/scoring';
@@ -95,6 +97,16 @@ export default function App() {
   const [criteriaPanelOpen, setCriteriaPanelOpen] = useState<boolean>(false);
   const [quickEntryOpen, setQuickEntryOpen] = useState<boolean>(true);
   const [draftScores, setDraftScores] = useState<Record<string, string>>({});
+  const [backupNotice, setBackupNotice] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!backupNotice) return;
+    const timer = window.setTimeout(() => setBackupNotice(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [backupNotice]);
 
   useEffect(() => {
     try {
@@ -473,6 +485,68 @@ export default function App() {
     exportToCsv(evaluated, judges, criteria, config.judgeCriteria, eventMeta);
   };
 
+  const handleExportBackup = () => {
+    try {
+      const fileName = exportBackupJson({
+        eventMeta,
+        judges,
+        criteria,
+        prizeConfig,
+        config,
+        performances,
+      });
+      setBackupNotice({
+        type: 'success',
+        message: `Đã lưu file dự phòng "${fileName}" gồm đầy đủ cấu hình, danh sách BGK, tiêu chí và điểm số.`,
+      });
+    } catch {
+      setBackupNotice({
+        type: 'error',
+        message: 'Không thể tạo file dự phòng. Vui lòng thử lại.',
+      });
+    }
+  };
+
+  const handleImportBackup = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = typeof reader.result === 'string' ? reader.result : '';
+        const restored = parseBackupJson(text);
+        setEventMeta({ ...DEFAULT_EVENT_META, ...restored.eventMeta });
+        setJudges(restored.judges);
+        setCriteria(restored.criteria);
+        setPrizeConfig({ ...DEFAULT_PRIZE_CONFIG, ...restored.prizeConfig });
+        setConfig({ ...DEFAULT_CONFIG, ...restored.config });
+        setPerformances(restored.performances);
+        setDraftScores({});
+        if (restored.performances[0]) {
+          setSelectedId(restored.performances[0].id);
+        }
+        setBackupNotice({
+          type: 'success',
+          message: `Đã nạp thành công dữ liệu từ "${file.name}" (${restored.performances.length} tiết mục, ${restored.judges.length} giám khảo).`,
+        });
+      } catch (err) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : 'File dự phòng không hợp lệ hoặc bị hỏng.';
+        setBackupNotice({
+          type: 'error',
+          message: msg,
+        });
+      }
+    };
+    reader.onerror = () => {
+      setBackupNotice({
+        type: 'error',
+        message: 'Không thể đọc file đã chọn. Vui lòng thử lại.',
+      });
+    };
+    reader.readAsText(file, 'utf-8');
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF7F2] text-[#1C1917]">
       <TopBar
@@ -493,6 +567,27 @@ export default function App() {
       />
 
       <main className="no-print flex-1 mx-auto w-full max-w-[1400px] px-4 py-5 pb-24 sm:px-6 md:py-6 md:pb-8 lg:px-8">
+        {backupNotice && (
+          <div
+            role="status"
+            aria-live="polite"
+            className={`mb-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-xs sm:text-sm ${
+              backupNotice.type === 'success'
+                ? 'border-[#16A34A]/30 bg-[#F0FDF4] text-[#166534]'
+                : 'border-[#DC2626]/30 bg-[#FEF2F2] text-[#991B1B]'
+            }`}
+          >
+            <span className="font-medium">{backupNotice.message}</span>
+            <button
+              type="button"
+              onClick={() => setBackupNotice(null)}
+              className="shrink-0 rounded px-2 py-1 text-xs font-semibold hover:bg-black/5 cursor-pointer"
+            >
+              Đóng
+            </button>
+          </div>
+        )}
+
         {activeTab === 'ledger' && (
           <div className="space-y-4">
             <CriteriaAssignmentPanel
@@ -542,6 +637,8 @@ export default function App() {
               onLoadSampleScores={handleLoadSampleScores}
               onClearAllScores={handleClearAllScores}
               onExportCsv={handleExportCsv}
+              onExportBackup={handleExportBackup}
+              onImportBackup={handleImportBackup}
             />
           </div>
         )}
